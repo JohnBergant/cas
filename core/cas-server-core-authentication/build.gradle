@@ -1,14 +1,27 @@
 description = "Apereo CAS Core Authentication"
 dependencies {
-    compile project(":api:cas-server-core-api-services")
-    compile project(":api:cas-server-core-api-ticket")
-    compile project(":core:cas-server-core-configuration")
-    compile project(":api:cas-server-core-api-events")
-    api libraries.metrics
-    implementation libraries.httpclient
-    implementation libraries.ldaptive
+    api project(":api:cas-server-core-api-services")
+    api project(":api:cas-server-core-api-ticket")
+    api project(":api:cas-server-core-api-authentication")
+    api project(":api:cas-server-core-api-events")
+    
+    implementation project(":core:cas-server-core-authentication-attributes")
+    implementation project(":core:cas-server-core-authentication-mfa")
+    implementation project(":core:cas-server-core-authentication-api")
+    implementation project(":core:cas-server-core-configuration-api")
+    implementation project(":core:cas-server-core-util-api")
+    
     implementation libraries.groovy
-
     implementation libraries.springsecurity
+    implementation libraries.caffein
+    implementation libraries.metrics
+    
     testImplementation project(":core:cas-server-core-web")
+    testImplementation project(":core:cas-server-core-logout-api")
+    testImplementation project(":core:cas-server-core-tickets")
+    testImplementation project(":core:cas-server-core-services-authentication")
+    testImplementation project(":core:cas-server-core-services")
+    testImplementation project(":core:cas-server-core-util")
+    testImplementation project(":core:cas-server-core-configuration")
+    testImplementation project(path: ":core:cas-server-core-authentication-api", configuration: "tests")
 }

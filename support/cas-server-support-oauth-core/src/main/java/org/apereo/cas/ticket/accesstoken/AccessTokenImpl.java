@@ -8,6 +8,7 @@ import org.apereo.cas.ticket.code.OAuthCodeImpl;
 
 import javax.persistence.DiscriminatorValue;
 import javax.persistence.Entity;
+import java.util.Collection;
 
 /**
  * An OAuth access token implementation.
@@ -36,11 +37,15 @@ public class AccessTokenImpl extends OAuthCodeImpl implements AccessToken {
      * @param authentication       the authentication.
      * @param expirationPolicy     the expiration policy.
      * @param ticketGrantingTicket the ticket granting ticket
+     * @param scopes               the scopes
      * @throws IllegalArgumentException if the service or authentication are null.
      */
-    public AccessTokenImpl(final String id, final Service service, final Authentication authentication,
-                           final ExpirationPolicy expirationPolicy, final TicketGrantingTicket ticketGrantingTicket) {
-        super(id, service, authentication, expirationPolicy, ticketGrantingTicket);
+    public AccessTokenImpl(final String id, final Service service,
+                           final Authentication authentication,
+                           final ExpirationPolicy expirationPolicy,
+                           final TicketGrantingTicket ticketGrantingTicket,
+                           final Collection<String> scopes) {
+        super(id, service, authentication, expirationPolicy, ticketGrantingTicket, scopes);
     }
 
     @Override

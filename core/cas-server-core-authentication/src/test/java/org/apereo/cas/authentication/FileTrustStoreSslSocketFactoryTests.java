@@ -37,7 +37,7 @@ public class FileTrustStoreSslSocketFactoryTests {
     }
 
     @Test
-    public void verifyTrustStoreLoadingSuccessfullyWithCertAvailable2() throws Exception {
+    public void verifyTrustStoreLoadingSuccessfullyWithCertAvailable2() {
         final SimpleHttpClientFactoryBean clientFactory = new SimpleHttpClientFactoryBean();
         clientFactory.setSslSocketFactory(sslFactory());
         final HttpClient client = clientFactory.getObject();
@@ -45,19 +45,19 @@ public class FileTrustStoreSslSocketFactoryTests {
     }
 
     @Test
-    public void verifyTrustStoreNotFound() throws Exception {
+    public void verifyTrustStoreNotFound() {
         this.thrown.expect(RuntimeException.class);
         sslFactory(new FileSystemResource("test.jks"), "changeit");
     }
 
     @Test
-    public void verifyTrustStoreBadPassword() throws Exception {
+    public void verifyTrustStoreBadPassword() {
         this.thrown.expect(RuntimeException.class);
         sslFactory(RESOURCE, "invalid");
     }
 
     @Test
-    public void verifyTrustStoreLoadingSuccessfullyForValidEndpointWithNoCert() throws Exception {
+    public void verifyTrustStoreLoadingSuccessfullyForValidEndpointWithNoCert() {
         final SimpleHttpClientFactoryBean clientFactory = new SimpleHttpClientFactoryBean();
         clientFactory.setSslSocketFactory(sslFactory());
         final HttpClient client = clientFactory.getObject();
@@ -65,7 +65,7 @@ public class FileTrustStoreSslSocketFactoryTests {
     }
 
     @Test
-    public void verifyTrustStoreLoadingSuccessfullyWihInsecureEndpoint() throws Exception {
+    public void verifyTrustStoreLoadingSuccessfullyWihInsecureEndpoint() {
         final SimpleHttpClientFactoryBean clientFactory = new SimpleHttpClientFactoryBean();
         clientFactory.setSslSocketFactory(sslFactory());
         final HttpClient client = clientFactory.getObject();

@@ -1,6 +1,8 @@
 package org.apereo.cas.adaptors.x509.authentication.principal;
 
 import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apereo.cas.authentication.principal.PrincipalFactory;
+import org.apereo.services.persondir.IPersonAttributeDao;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1OctetString;
@@ -34,12 +36,22 @@ public class X509SubjectAlternativeNameUPNPrincipalResolver extends AbstractX509
 
     private static final Logger LOGGER = LoggerFactory.getLogger(X509SubjectAlternativeNameUPNPrincipalResolver.class);
 
+    public X509SubjectAlternativeNameUPNPrincipalResolver() {
+        super();
+    }
+
+    public X509SubjectAlternativeNameUPNPrincipalResolver(final IPersonAttributeDao attributeRepository,
+                                                          final PrincipalFactory principalFactory,
+                                                          final boolean returnNullIfNoAttributes,
+                                                          final String principalAttributeName) {
+        super(attributeRepository, principalFactory, returnNullIfNoAttributes, principalAttributeName);
+    }
+
     /**
      * Retrieves Subject Alternative Name UPN extension as a principal id String.
      *
      * @param certificate X.509 certificate credential.
      * @return Resolved principal ID or null if no SAN UPN extension is available in provided certificate.
-     * @see AbstractX509PrincipalResolver#resolvePrincipalInternal(java.security.cert.X509Certificate)
      * @see java.security.cert.X509Certificate#getSubjectAlternativeNames()
      */
     @Override

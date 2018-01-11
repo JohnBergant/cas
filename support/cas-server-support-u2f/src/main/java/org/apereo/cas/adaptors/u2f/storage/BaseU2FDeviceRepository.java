@@ -1,6 +1,9 @@
 package org.apereo.cas.adaptors.u2f.storage;
 
-import com.google.common.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.LoadingCache;
+import org.apereo.cas.CipherExecutor;
+
+import java.io.Serializable;
 
 /**
  * This is {@link BaseU2FDeviceRepository}.
@@ -10,14 +13,23 @@ import com.google.common.cache.LoadingCache;
  */
 public abstract class BaseU2FDeviceRepository implements U2FDeviceRepository {
     private final LoadingCache<String, String> requestStorage;
+    private CipherExecutor<Serializable, String> cipherExecutor;
 
     public BaseU2FDeviceRepository(final LoadingCache<String, String> requestStorage) {
         this.requestStorage = requestStorage;
     }
 
+    public CipherExecutor<Serializable, String> getCipherExecutor() {
+        return cipherExecutor;
+    }
+
+    public void setCipherExecutor(final CipherExecutor<Serializable, String> cipherExecutor) {
+        this.cipherExecutor = cipherExecutor;
+    }
+
     @Override
     public String getDeviceRegistrationRequest(final String requestId, final String username) {
-        final String request = requestStorage.getUnchecked(requestId);
+        final String request = requestStorage.get(requestId);
         requestStorage.invalidate(requestId);
         requestStorage.cleanUp();
         return request;
@@ -25,7 +37,7 @@ public abstract class BaseU2FDeviceRepository implements U2FDeviceRepository {
 
     @Override
     public String getDeviceAuthenticationRequest(final String requestId, final String username) {
-        final String request = requestStorage.getUnchecked(requestId);
+        final String request = requestStorage.get(requestId);
         requestStorage.invalidate(requestId);
         requestStorage.cleanUp();
         return request;

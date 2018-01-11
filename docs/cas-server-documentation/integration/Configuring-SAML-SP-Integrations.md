@@ -85,8 +85,47 @@ The following SAML SP integrations, as samples, are provided by CAS:
 <a href="https://www.gartner.com/">
 <img src="https://cloud.githubusercontent.com/assets/1205228/25349422/a29a98f6-28d6-11e7-9d10-e286d0080cbe.png" height="48" width="120"></a>
 
+<a href="https://www.cherwell.com/">
+<img src="https://user-images.githubusercontent.com/1205228/30205883-84174ebc-949f-11e7-9afc-a66c2ab19f59.png" height="48" width="120"></a>
+
+<a href="https://www.bynder.com">
+<img src="https://user-images.githubusercontent.com/1205228/30205852-69921a5e-949f-11e7-8326-ba4c00fceba4.png" height="48" width="120"></a>
+
+<a href="https://www.everbridge.com/">
+<img src="https://user-images.githubusercontent.com/1205228/30205910-a560ec90-949f-11e7-8485-e3a833f8109b.png" height="48" width="120"></a>
+
+<a href="https://sserca.fau.edu/">
+<img src="https://user-images.githubusercontent.com/1205228/30221936-5e90af04-94da-11e7-8046-483fc26a1c01.png" height="48" width="220"></a>
+
+<a href="https://newrelic.com/new">
+<img src="https://user-images.githubusercontent.com/1205228/30247067-541cef96-9620-11e7-88d7-c3749ba55ecf.png" height="48" width="90"></a>
+
+<a href="https://www.egnyte.com/">
+<img src="https://user-images.githubusercontent.com/1205228/30247063-218f3962-9620-11e7-9ba4-54f7112fee13.png" height="48" width="120"></a>
+
+<a href="https://www.yuja.com/">
+<img src="https://user-images.githubusercontent.com/1205228/30271142-6dd0b58c-9704-11e7-9138-0b86d5799403.png" height="48" width="100"></a>
+
+<a href="https://www.symplicity.com/">
+<img src="https://user-images.githubusercontent.com/1205228/30271318-192b48fc-9705-11e7-9c18-3be401a39e84.png" height="48" width="200"></a>
+
 <a href="Google-Apps-Integration.html">
 <img src="https://cloud.githubusercontent.com/assets/1205228/25385497/18e09c84-2979-11e7-94c1-5ad430b3d768.png" height="48" width="120"></a>
+
+<a href="http://www.accruent.com/">
+<img src="https://user-images.githubusercontent.com/1205228/30735450-f9a12792-9f8b-11e7-941d-7ab4ac7628b9.png" height="48" width="120"></a>
+
+<a href="https://www.gitlab.com/">
+<img src="https://user-images.githubusercontent.com/1205228/33747990-4d8da06e-db83-11e7-9551-f52630f7d4f0.png" height="38" width="120"></a>
+
+<a href="https://www.hipchat.com/">
+<img src="https://user-images.githubusercontent.com/1205228/33751445-2b45394e-db98-11e7-9526-1eda07a70d99.png" height="58" width="140"></a>
+
+<a href="https://www.appdynamics.com/">
+<img src="https://user-images.githubusercontent.com/1205228/33800340-3c2c072e-dcfb-11e7-9f10-7a7b2488c9b2.png" height="58" width="120"></a>
+
+<a href="https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_enable-console-saml.html">
+<img src="https://user-images.githubusercontent.com/1205228/34523704-d33a2054-f0ad-11e7-9fd7-444c30772a2a.png" height="58" width="120"></a>
 
 </div>
 

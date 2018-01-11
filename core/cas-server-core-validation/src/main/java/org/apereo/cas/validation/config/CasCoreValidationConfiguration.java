@@ -1,14 +1,28 @@
 package org.apereo.cas.validation.config;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apereo.cas.configuration.CasConfigurationProperties;
+import org.apereo.cas.services.ServicesManager;
 import org.apereo.cas.validation.Cas10ProtocolValidationSpecification;
 import org.apereo.cas.validation.Cas20ProtocolValidationSpecification;
 import org.apereo.cas.validation.Cas20WithoutProxyingValidationSpecification;
-import org.apereo.cas.validation.ValidationSpecification;
+import org.apereo.cas.validation.CasProtocolValidationSpecification;
+import org.apereo.cas.validation.DefaultServiceTicketValidationAuthorizersExecutionPlan;
+import org.apereo.cas.validation.RegisteredServiceRequiredHandlersServiceTicketValidationAuthorizer;
+import org.apereo.cas.validation.ServiceTicketValidationAuthorizer;
+import org.apereo.cas.validation.ServiceTicketValidationAuthorizerConfigurer;
+import org.apereo.cas.validation.ServiceTicketValidationAuthorizersExecutionPlan;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Scope;
+
+import java.util.List;
 
 /**
  * This is {@link CasCoreValidationConfiguration}.
@@ -18,23 +32,52 @@ import org.springframework.context.annotation.Scope;
  */
 @Configuration("casCoreValidationConfiguration")
 @EnableConfigurationProperties(CasConfigurationProperties.class)
-public class CasCoreValidationConfiguration {
+public class CasCoreValidationConfiguration implements ServiceTicketValidationAuthorizerConfigurer {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CasCoreValidationConfiguration.class);
+
+    @Autowired
+    @Qualifier("servicesManager")
+    private ServicesManager servicesManager;
     
     @Bean
     @Scope(value = "prototype")
-    public ValidationSpecification cas10ProtocolValidationSpecification() {
+    public CasProtocolValidationSpecification cas10ProtocolValidationSpecification() {
         return new Cas10ProtocolValidationSpecification();
     }
 
     @Bean
     @Scope(value = "prototype")
-    public ValidationSpecification cas20ProtocolValidationSpecification() {
+    public CasProtocolValidationSpecification cas20ProtocolValidationSpecification() {
         return new Cas20ProtocolValidationSpecification();
     }
 
     @Bean
     @Scope(value = "prototype")
-    public ValidationSpecification cas20WithoutProxyProtocolValidationSpecification() {
+    public CasProtocolValidationSpecification cas20WithoutProxyProtocolValidationSpecification() {
         return new Cas20WithoutProxyingValidationSpecification();
+    }
+
+    @Autowired
+    @Bean
+    @ConditionalOnMissingBean(name = "serviceValidationAuthorizers")
+    public ServiceTicketValidationAuthorizersExecutionPlan serviceValidationAuthorizers(final List<ServiceTicketValidationAuthorizerConfigurer> configurers) {
+        final DefaultServiceTicketValidationAuthorizersExecutionPlan plan = new DefaultServiceTicketValidationAuthorizersExecutionPlan();
+        configurers.forEach(c -> {
+            final String name = StringUtils.removePattern(c.getClass().getSimpleName(), "\\$.+");
+            LOGGER.debug("Configuring service ticket validation authorizer execution plan [{}]", name);
+            c.configureAuthorizersExecutionPlan(plan);
+        });
+        return plan;
+    }
+
+    @Bean
+    public ServiceTicketValidationAuthorizer requiredHandlersServiceTicketValidationAuthorizer() {
+        return new RegisteredServiceRequiredHandlersServiceTicketValidationAuthorizer(this.servicesManager);
+    }
+
+    @Override
+    public void configureAuthorizersExecutionPlan(final ServiceTicketValidationAuthorizersExecutionPlan plan) {
+        plan.registerAuthorizer(requiredHandlersServiceTicketValidationAuthorizer());
     }
 }

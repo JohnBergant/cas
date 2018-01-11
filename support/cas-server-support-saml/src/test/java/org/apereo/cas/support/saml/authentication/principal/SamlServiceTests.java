@@ -2,19 +2,25 @@ package org.apereo.cas.support.saml.authentication.principal;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.FileUtils;
+import org.apereo.cas.authentication.CoreAuthenticationTestUtils;
 import org.apereo.cas.authentication.principal.Response;
 import org.apereo.cas.authentication.principal.Service;
 import org.apereo.cas.authentication.principal.WebApplicationService;
+import org.apereo.cas.services.DefaultServicesManager;
+import org.apereo.cas.services.ServiceRegistryDao;
 import org.apereo.cas.support.saml.AbstractOpenSamlTests;
 import org.apereo.cas.support.saml.SamlProtocolConstants;
 import org.apereo.cas.web.support.DefaultArgumentExtractor;
 import org.junit.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Test cases for {@link SamlService}.
@@ -33,7 +39,9 @@ public class SamlServiceTests extends AbstractOpenSamlTests {
         request.setParameter(SamlProtocolConstants.CONST_PARAM_TARGET, "service");
         final SamlService impl = new SamlServiceFactory().createService(request);
 
-        final Response response = new SamlServiceResponseBuilder().build(impl, "ticketId");
+        final Response response = new SamlServiceResponseBuilder(
+            new DefaultServicesManager(mock(ServiceRegistryDao.class), mock(ApplicationEventPublisher.class))).build(impl, "ticketId",
+            CoreAuthenticationTestUtils.getAuthentication());
         assertNotNull(response);
         assertEquals(Response.ResponseType.REDIRECT, response.getResponseType());
         assertTrue(response.getUrl().contains(SamlProtocolConstants.CONST_PARAM_ARTIFACT.concat("=")));
@@ -53,7 +61,9 @@ public class SamlServiceTests extends AbstractOpenSamlTests {
         final MockHttpServletRequest request = new MockHttpServletRequest();
         request.setParameter(SamlProtocolConstants.CONST_PARAM_TARGET, "service");
         final SamlService impl = new SamlServiceFactory().createService(request);
-        final Response response = new SamlServiceResponseBuilder().build(impl, null);
+        final Response response = new SamlServiceResponseBuilder(
+            new DefaultServicesManager(mock(ServiceRegistryDao.class), mock(ApplicationEventPublisher.class)))
+            .build(impl, null, CoreAuthenticationTestUtils.getAuthentication());
         assertNotNull(response);
         assertEquals(Response.ResponseType.REDIRECT, response.getResponseType());
         assertFalse(response.getUrl().contains(SamlProtocolConstants.CONST_PARAM_ARTIFACT.concat("=")));
@@ -62,11 +72,11 @@ public class SamlServiceTests extends AbstractOpenSamlTests {
     @Test
     public void verifyRequestBody() {
         final String body = "<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\">"
-                + "<SOAP-ENV:Header/><SOAP-ENV:Body><samlp:Request xmlns:samlp=\"urn:oasis:names:tc:SAML:1.0:protocol\" MajorVersion=\"1\" "
-                + "MinorVersion=\"1\" RequestID=\"_192.168.16.51.1024506224022\" IssueInstant=\"2002-06-19T17:03:44.022Z\">"
-                + "<samlp:AssertionArtifact>artifact</samlp:AssertionArtifact></samlp:Request></SOAP-ENV:Body></SOAP-ENV:Envelope>";
+            + "<SOAP-ENV:Header/><SOAP-ENV:Body><samlp:Request xmlns:samlp=\"urn:oasis:names:tc:SAML:1.0:protocol\" MajorVersion=\"1\" "
+            + "MinorVersion=\"1\" RequestID=\"_192.168.16.51.1024506224022\" IssueInstant=\"2002-06-19T17:03:44.022Z\">"
+            + "<samlp:AssertionArtifact>artifact</samlp:AssertionArtifact></samlp:Request></SOAP-ENV:Body></SOAP-ENV:Envelope>";
         final MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setContent(body.getBytes());
+        request.setContent(body.getBytes(StandardCharsets.UTF_8));
 
         final SamlService impl = new SamlServiceFactory().createService(request);
         assertEquals("artifact", impl.getArtifactId());
@@ -74,7 +84,7 @@ public class SamlServiceTests extends AbstractOpenSamlTests {
     }
 
     @Test
-    public void verifyTargetMatchesingSamlService() {
+    public void verifyTargetMatchingSamlService() {
         final MockHttpServletRequest request = new MockHttpServletRequest();
         request.setParameter(SamlProtocolConstants.CONST_PARAM_TARGET, "https://some.service.edu/path/to/app");
 
@@ -98,11 +108,11 @@ public class SamlServiceTests extends AbstractOpenSamlTests {
     @Test
     public void verifySerializeASamlServiceToJson() throws IOException {
         final String body = "<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\">"
-                + "<SOAP-ENV:Header/><SOAP-ENV:Body><samlp:Request xmlns:samlp=\"urn:oasis:names:tc:SAML:1.0:protocol\" MajorVersion=\"1\" "
-                + "MinorVersion=\"1\" RequestID=\"_192.168.16.51.1024506224022\" IssueInstant=\"2002-06-19T17:03:44.022Z\">"
-                + "<samlp:AssertionArtifact>artifact</samlp:AssertionArtifact></samlp:Request></SOAP-ENV:Body></SOAP-ENV:Envelope>";
+            + "<SOAP-ENV:Header/><SOAP-ENV:Body><samlp:Request xmlns:samlp=\"urn:oasis:names:tc:SAML:1.0:protocol\" MajorVersion=\"1\" "
+            + "MinorVersion=\"1\" RequestID=\"_192.168.16.51.1024506224022\" IssueInstant=\"2002-06-19T17:03:44.022Z\">"
+            + "<samlp:AssertionArtifact>artifact</samlp:AssertionArtifact></samlp:Request></SOAP-ENV:Body></SOAP-ENV:Envelope>";
         final MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setContent(body.getBytes());
+        request.setContent(body.getBytes(StandardCharsets.UTF_8));
 
         final SamlService serviceWritten = new SamlServiceFactory().createService(request);
         MAPPER.writeValue(JSON_FILE, serviceWritten);

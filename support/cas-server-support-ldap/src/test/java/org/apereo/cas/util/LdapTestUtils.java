@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.stream.Collectors;
@@ -61,7 +62,7 @@ public final class LdapTestUtils {
      */
     public static Collection<LdapEntry> readLdif(final InputStream ldif, final String baseDn) throws IOException {
         final String ldapString;
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(ldif))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(ldif, StandardCharsets.UTF_8))) {
             ldapString = reader.lines()
                     .map(line -> {
                         if (line.contains(BASE_DN_PLACEHOLDER)) {
@@ -79,9 +80,8 @@ public final class LdapTestUtils {
      *
      * @param connection Open LDAP connection used to connect to directory.
      * @param entries    Collection of LDAP entries.
-     * @throws Exception On LDAP errors.
      */
-    public static void createLdapEntries(final LDAPConnection connection, final Collection<LdapEntry> entries) throws Exception {
+    public static void createLdapEntries(final LDAPConnection connection, final Collection<LdapEntry> entries) {
         try {
             for (final LdapEntry entry : entries) {
                 final Collection<Attribute> attrs = new ArrayList<>(entry.getAttributeNames().length);

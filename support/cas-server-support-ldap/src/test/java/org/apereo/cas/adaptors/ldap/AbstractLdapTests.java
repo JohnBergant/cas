@@ -1,12 +1,12 @@
 package org.apereo.cas.adaptors.ldap;
 
-import org.apereo.cas.util.ldap.uboundid.InMemoryTestLdapDirectoryServer;
-import org.ldaptive.LdapEntry;
-import org.springframework.core.io.ClassPathResource;
-
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apereo.cas.util.ldap.uboundid.InMemoryTestLdapDirectoryServer;
+import org.springframework.core.io.ClassPathResource;
 
 /**
  * Base class for LDAP tests that provision and de-provision DIRECTORY data as part of test setup/teardown.
@@ -16,30 +16,32 @@ import java.util.Collection;
  */
 public abstract class AbstractLdapTests {
 
-    protected static InMemoryTestLdapDirectoryServer DIRECTORY;
+    private static Map<Integer, InMemoryTestLdapDirectoryServer> DIRECTORY_MAP = new HashMap<>();
 
-    public static synchronized void initDirectoryServer(final InputStream ldifFile) throws IOException {
+    public static synchronized void initDirectoryServer(final InputStream ldifFile,
+                                                        final int port) {
         try {
-            final boolean createInstance = DIRECTORY == null || !DIRECTORY.isAlive();
+            final InMemoryTestLdapDirectoryServer directory = DIRECTORY_MAP.get(port);
+            final boolean createInstance = directory == null || !directory.isAlive();
             if (createInstance) {
-                final ClassPathResource properties = new ClassPathResource("ldap.properties");
+                final ClassPathResource properties = new ClassPathResource("ldapserver.properties");
                 final ClassPathResource schema = new ClassPathResource("schema/standard-ldap.schema");
-                DIRECTORY = new InMemoryTestLdapDirectoryServer(properties.getInputStream(), ldifFile, schema.getInputStream());
+                DIRECTORY_MAP.put(port, new InMemoryTestLdapDirectoryServer(properties.getInputStream(), ldifFile, schema.getInputStream(), port));
             }
         } catch (final Exception e) {
             throw new IllegalArgumentException(e.getMessage(), e);
         }
     }
 
-    public static void initDirectoryServer() throws IOException {
-        initDirectoryServer(new ClassPathResource("ldif/ldap-base.ldif").getInputStream());
+    public static void initDirectoryServer(final int port) throws IOException {
+        initDirectoryServer(new ClassPathResource("ldif/ldap-base.ldif").getInputStream(), port);
     }
 
-    protected static InMemoryTestLdapDirectoryServer getDirectory() {
-        return DIRECTORY;
+    protected static InMemoryTestLdapDirectoryServer getDirectory(final int port) {
+        return getLdapDirectory(port);
     }
 
-    protected Collection<LdapEntry> getEntries() {
-        return DIRECTORY.getLdapEntries();
+    protected static InMemoryTestLdapDirectoryServer getLdapDirectory(final int port) {
+        return DIRECTORY_MAP.get(port);
     }
 }

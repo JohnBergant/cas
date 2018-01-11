@@ -48,7 +48,7 @@ public class CasCoreTicketsSchedulingConfiguration {
     public TicketRegistryCleaner ticketRegistryCleaner(@Qualifier("lockingStrategy") final LockingStrategy lockingStrategy,
                                                        @Qualifier("logoutManager") final LogoutManager logoutManager,
                                                        @Qualifier("ticketRegistry") final TicketRegistry ticketRegistry) {
-        final boolean isCleanerEnabled = casProperties.getTicket().getRegistry().getCleaner().isEnabled();
+        final boolean isCleanerEnabled = casProperties.getTicket().getRegistry().getCleaner().getSchedule().isEnabled();
         if (isCleanerEnabled) {
             LOGGER.debug("Ticket registry cleaner is enabled.");
             return new DefaultTicketRegistryCleaner(lockingStrategy, logoutManager, ticketRegistry);
@@ -56,7 +56,7 @@ public class CasCoreTicketsSchedulingConfiguration {
         LOGGER.debug("Ticket registry cleaner is not enabled. "
                 + "Expired tickets are not forcefully collected and cleaned by CAS. It is up to the ticket registry itself to "
                 + "clean up tickets based on expiration and eviction policies.");
-        return new NoOpTicketRegistryCleaner();
+        return NoOpTicketRegistryCleaner.getInstance();
     }
 
     @ConditionalOnMissingBean(name = "ticketRegistryCleanerScheduler")
@@ -84,8 +84,8 @@ public class CasCoreTicketsSchedulingConfiguration {
             this.ticketRegistryCleaner = ticketRegistryCleaner;
         }
 
-        @Scheduled(initialDelayString = "${cas.ticket.registry.cleaner.startDelay:PT30S}",
-                fixedDelayString = "${cas.ticket.registry.cleaner.repeatInterval:PT120S}")
+        @Scheduled(initialDelayString = "${cas.ticket.registry.cleaner.schedule.startDelay:PT30S}",
+                fixedDelayString = "${cas.ticket.registry.cleaner.schedule.repeatInterval:PT120S}")
         public void run() {
             this.ticketRegistryCleaner.clean();
         }

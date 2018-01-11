@@ -30,14 +30,16 @@ MANIFEST.MF
 classes/
 *.bin
 
-**/tomcat/
 out
 ajcore.*
 reports
 
+webapp/resources/static/css/*
 *.asc
-*.css
 /.nb-gradle/
 etc/loadtests/loadtests/**
 etc/loadtests/locustfiles/**
 etc/loadtests/__pycache__/**
+webapp/resources/static/js/*-bundle.js
+**/k/
+**/dist/

@@ -1,11 +1,10 @@
 package org.apereo.cas.support.saml.util;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.google.common.base.Throwables;
 import org.apache.commons.lang3.StringUtils;
 import org.apereo.cas.support.saml.OpenSamlConfigBean;
 import org.apereo.cas.util.CollectionUtils;
-import org.apereo.cas.util.EncodingUtils;
+import org.apereo.cas.util.gen.HexRandomStringGenerator;
 import org.jdom.Document;
 import org.jdom.input.DOMBuilder;
 import org.jdom.input.SAXBuilder;
@@ -25,6 +24,16 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import java.io.ByteArrayInputStream;
+import java.io.Serializable;
+import java.io.StringWriter;
+import java.lang.reflect.Field;
+import java.nio.charset.Charset;
+import java.security.PrivateKey;
+import java.security.Provider;
+import java.security.PublicKey;
+import java.util.Collection;
+import java.util.List;
 import javax.xml.XMLConstants;
 import javax.xml.crypto.dsig.CanonicalizationMethod;
 import javax.xml.crypto.dsig.DigestMethod;
@@ -42,23 +51,12 @@ import javax.xml.crypto.dsig.spec.C14NMethodParameterSpec;
 import javax.xml.crypto.dsig.spec.TransformParameterSpec;
 import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilderFactory;
-import java.io.ByteArrayInputStream;
-import java.io.Serializable;
-import java.io.StringWriter;
-import java.lang.reflect.Field;
-import java.nio.charset.Charset;
-import java.security.PrivateKey;
-import java.security.Provider;
-import java.security.PublicKey;
-import java.security.SecureRandom;
-import java.util.Collection;
-import java.util.List;
 
 /**
  * An abstract builder to serve as the template handler
  * for SAML1 and SAML2 responses.
  *
- * @author Misagh Moayyed mmoayyed@unicon.net
+ * @author Misagh Moayyed
  * @since 4.1
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY)
@@ -108,7 +106,7 @@ public abstract class AbstractSamlObjectBuilder implements Serializable {
             }
             return objectType.cast(builder.buildObject(qName));
         } catch (final Exception e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e.getMessage(), e);
         }
     }
 
@@ -128,7 +126,7 @@ public abstract class AbstractSamlObjectBuilder implements Serializable {
             }
             return objectType.cast(builder.buildObject(qName));
         } catch (final Exception e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e.getMessage(), e);
         }
     }
 
@@ -137,9 +135,8 @@ public abstract class AbstractSamlObjectBuilder implements Serializable {
      *
      * @param objectType the object type
      * @return the saml object QName
-     * @throws Exception the exception
      */
-    public QName getSamlObjectQName(final Class objectType) throws Exception {
+    public QName getSamlObjectQName(final Class objectType) {
         try {
             final Field f = objectType.getField(DEFAULT_ELEMENT_NAME_FIELD);
             return (QName) f.get(null);
@@ -172,14 +169,12 @@ public abstract class AbstractSamlObjectBuilder implements Serializable {
      */
     public String generateSecureRandomId() {
         try {
-            final SecureRandom random = SecureRandom.getInstance("SHA1PRNG");
-            final byte[] buf = new byte[RANDOM_ID_SIZE];
-            random.nextBytes(buf);
-            final String hex = EncodingUtils.hexEncode(buf);
+            final HexRandomStringGenerator random = new HexRandomStringGenerator(RANDOM_ID_SIZE);
+            final String hex = random.getNewString();
             if (StringUtils.isBlank(hex)) {
                 throw new IllegalArgumentException("Could not generate a secure random id based on " + random.getAlgorithm());
             }
-            return "_".concat(hex);
+            return "_" + hex;
         } catch (final Exception e) {
             throw new IllegalStateException("Cannot create secure random ID generator for SAML message IDs.", e);
         }
@@ -263,8 +258,9 @@ public abstract class AbstractSamlObjectBuilder implements Serializable {
         try {
             final String providerName = System.getProperty("jsr105Provider", SIGNATURE_FACTORY_PROVIDER_CLASS);
 
+            final Class<?> clazz = Class.forName(providerName);
             final XMLSignatureFactory sigFactory = XMLSignatureFactory
-                    .getInstance("DOM", (Provider) Class.forName(providerName).newInstance());
+                    .getInstance("DOM", (Provider) clazz.getDeclaredConstructor().newInstance());
 
             final List<Transform> envelopedTransform = CollectionUtils.wrap(sigFactory.newTransform(Transform.ENVELOPED, (TransformParameterSpec) null));
 

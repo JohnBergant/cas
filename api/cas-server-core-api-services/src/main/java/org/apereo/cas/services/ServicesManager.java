@@ -2,9 +2,10 @@ package org.apereo.cas.services;
 
 import org.apereo.cas.authentication.principal.Service;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Manages the storage, retrieval, and matching of Services wishing to use CAS
@@ -24,12 +25,29 @@ public interface ServicesManager {
     RegisteredService save(RegisteredService registeredService);
 
     /**
+     * Register a service with CAS, or update an existing an entry.
+     *
+     * @param registeredService the RegisteredService to update or add.
+     * @param publishEvent      whether events should be published to indicate the save operation.
+     * @return newly persisted RegisteredService instance
+     */
+    RegisteredService save(RegisteredService registeredService, boolean publishEvent);
+
+    /**
      * Delete the entry for this RegisteredService.
      *
      * @param id the id of the registeredService to delete.
      * @return the registered service that was deleted, null if there was none.
      */
     RegisteredService delete(long id);
+
+    /**
+     * Delete the entry for this RegisteredService.
+     *
+     * @param svc the registered service to delete.
+     * @return the registered service that was deleted, null if there was none.
+     */
+    RegisteredService delete(RegisteredService svc);
 
     /**
      * Find a RegisteredService by matching with the supplied service.
@@ -64,7 +82,7 @@ public interface ServicesManager {
      * @return the t
      */
     <T extends RegisteredService> T findServiceBy(Service serviceId, Class<T> clazz);
-    
+
     /**
      * Find service by type.
      *
@@ -85,6 +103,7 @@ public interface ServicesManager {
 
     /**
      * Retrieve the collection of all registered services.
+     * Services that are returned are valid, non-expired, etc.
      *
      * @return the collection of all services.
      */
@@ -129,7 +148,7 @@ public interface ServicesManager {
      * @return list of services
      */
     default Collection<RegisteredService> getServicesForDomain(String domain) {
-        return new ArrayList<>();
+        return getAllServices();
     }
 
     /**
@@ -138,7 +157,7 @@ public interface ServicesManager {
      * @return list of domain names
      */
     default Collection<String> getDomains() {
-        return new ArrayList<>();
+        return Stream.of("default").collect(Collectors.toList());
     }
 
 }

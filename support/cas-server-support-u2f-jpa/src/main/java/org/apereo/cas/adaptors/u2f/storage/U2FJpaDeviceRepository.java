@@ -1,6 +1,6 @@
 package org.apereo.cas.adaptors.u2f.storage;
 
-import com.google.common.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.yubico.u2f.data.DeviceRegistration;
 import org.apereo.cas.util.DateTimeUtils;
 import org.slf4j.Logger;
@@ -49,19 +49,19 @@ public class U2FJpaDeviceRepository extends BaseU2FDeviceRepository {
         try {
             final LocalDate expirationDate = LocalDate.now().minus(this.expirationTime, DateTimeUtils.toChronoUnit(this.expirationTimeUnit));
             return this.entityManager.createQuery(
-                    SELECT_QUERY.concat("where r.username = :username and r.date >= :expdate"), U2FDeviceRegistration.class)
+                    SELECT_QUERY.concat("where r.username = :username and r.createdDate >= :expdate"), U2FDeviceRegistration.class)
                     .setParameter("username", username)
                     .setParameter("expdate", expirationDate)
                     .getResultList()
                     .stream()
-                    .map(r -> DeviceRegistration.fromJson(r.getRecord()))
+                    .map(r -> DeviceRegistration.fromJson(getCipherExecutor().decode(r.getRecord())))
                     .collect(Collectors.toList());
         } catch (final NoResultException e) {
             LOGGER.debug("No device registration was found for [{}]", username);
         } catch (final Exception e) {
             LOGGER.error(e.getMessage(), e);
         }
-        return new ArrayList<>();
+        return new ArrayList<>(0);
     }
 
     @Override
@@ -73,8 +73,8 @@ public class U2FJpaDeviceRepository extends BaseU2FDeviceRepository {
     public void authenticateDevice(final String username, final DeviceRegistration registration) {
         final U2FDeviceRegistration jpa = new U2FDeviceRegistration();
         jpa.setUsername(username);
-        jpa.setRecord(registration.toJson());
-        jpa.setDate(LocalDate.now());
+        jpa.setRecord(getCipherExecutor().encode(registration.toJson()));
+        jpa.setCreatedDate(LocalDate.now());
         this.entityManager.merge(jpa);
     }
 
@@ -89,7 +89,7 @@ public class U2FJpaDeviceRepository extends BaseU2FDeviceRepository {
             final LocalDate expirationDate = LocalDate.now().minus(this.expirationTime, DateTimeUtils.toChronoUnit(this.expirationTimeUnit));
             LOGGER.debug("Cleaning up expired U2F device registrations based on expiration date [{}]", expirationDate);
             this.entityManager.createQuery(
-                    DELETE_QUERY.concat("where r.date <= :expdate"))
+                    DELETE_QUERY.concat("where r.createdDate <= :expdate"))
                     .setParameter("expdate", expirationDate)
                     .executeUpdate();
         } catch (final Exception e) {

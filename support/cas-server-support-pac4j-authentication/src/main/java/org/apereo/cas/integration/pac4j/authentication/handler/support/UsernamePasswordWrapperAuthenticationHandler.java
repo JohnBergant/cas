@@ -1,7 +1,6 @@
 package org.apereo.cas.integration.pac4j.authentication.handler.support;
 
 import org.apereo.cas.authentication.Credential;
-import org.apereo.cas.authentication.PreventedException;
 import org.apereo.cas.authentication.UsernamePasswordCredential;
 import org.apereo.cas.authentication.handler.PrincipalNameTransformer;
 import org.apereo.cas.authentication.principal.PrincipalFactory;
@@ -44,14 +43,15 @@ public class UsernamePasswordWrapperAuthenticationHandler
      */
     private PrincipalNameTransformer principalNameTransformer = formUserId -> formUserId;
 
-    public UsernamePasswordWrapperAuthenticationHandler(final String name, final ServicesManager servicesManager, final PrincipalFactory principalFactory,
+    public UsernamePasswordWrapperAuthenticationHandler(final String name, final ServicesManager servicesManager, 
+                                                        final PrincipalFactory principalFactory,
                                                         final Integer order) {
         super(name, servicesManager, principalFactory, order);
     }
 
     @Override
     protected UsernamePasswordCredentials convertToPac4jCredentials(final UsernamePasswordCredential casCredential)
-            throws GeneralSecurityException, PreventedException {
+            throws GeneralSecurityException {
         LOGGER.debug("CAS credentials: [{}]", casCredential);
 
         final String username = this.principalNameTransformer.transform(casCredential.getUsername());
@@ -77,19 +77,7 @@ public class UsernamePasswordWrapperAuthenticationHandler
     protected Class<UsernamePasswordCredential> getCasCredentialsType() {
         return UsernamePasswordCredential.class;
     }
-
-    public PasswordEncoder getPasswordEncoder() {
-        return this.passwordEncoder;
-    }
-
-    public void setPasswordEncoder(final PasswordEncoder passwordEncoder) {
-        this.passwordEncoder = passwordEncoder;
-    }
-
-    public PrincipalNameTransformer getPrincipalNameTransformer() {
-        return this.principalNameTransformer;
-    }
-
+    
     public void setPrincipalNameTransformer(final PrincipalNameTransformer principalNameTransformer) {
         this.principalNameTransformer = principalNameTransformer;
     }

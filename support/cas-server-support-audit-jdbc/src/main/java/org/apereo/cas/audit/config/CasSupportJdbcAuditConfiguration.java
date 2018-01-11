@@ -1,13 +1,14 @@
 package org.apereo.cas.audit.config;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apereo.cas.audit.AuditTrailExecutionPlanConfigurer;
 import org.apereo.cas.audit.entity.AuditTrailEntity;
-import org.apereo.cas.audit.spi.DefaultDelegatingAuditTrailManager;
-import org.apereo.cas.audit.spi.DelegatingAuditTrailManager;
 import org.apereo.cas.configuration.CasConfigurationProperties;
-import org.apereo.cas.configuration.model.core.audit.AuditProperties;
+import org.apereo.cas.configuration.model.core.audit.AuditJdbcProperties;
 import org.apereo.cas.configuration.model.support.jpa.JpaConfigDataHolder;
-import org.apereo.cas.configuration.support.Beans;
+import org.apereo.cas.configuration.support.JpaBeans;
+import org.apereo.cas.util.CollectionUtils;
+import org.apereo.inspektr.audit.AuditTrailManager;
 import org.apereo.inspektr.audit.support.JdbcAuditTrailManager;
 import org.apereo.inspektr.audit.support.MaxAgeWhereClauseMatchCriteria;
 import org.apereo.inspektr.audit.support.WhereClauseMatchCriteria;
@@ -42,11 +43,12 @@ public class CasSupportJdbcAuditConfiguration {
     private CasConfigurationProperties casProperties;
 
     @Bean
-    public JdbcAuditTrailManager jdbcAuditTrailManager() {
-        final AuditProperties.Jdbc jdbc = casProperties.getAudit().getJdbc();
+    public AuditTrailManager jdbcAuditTrailManager() {
+        final AuditJdbcProperties jdbc = casProperties.getAudit().getJdbc();
         final JdbcAuditTrailManager t = new JdbcAuditTrailManager(inspektrAuditTransactionTemplate());
         t.setCleanupCriteria(auditCleanupCriteria());
         t.setDataSource(inspektrAuditTrailDataSource());
+        t.setAsynchronous(jdbc.isAsynchronous());
         String tableName = AuditTrailEntity.AUDIT_TRAIL_TABLE_NAME;
         if (StringUtils.isNotBlank(jdbc.getDefaultSchema())) {
             tableName = jdbc.getDefaultSchema() + '.' + tableName;
@@ -59,18 +61,18 @@ public class CasSupportJdbcAuditConfiguration {
     }
 
     @Bean
-    public DelegatingAuditTrailManager auditTrailManager() {
-        return new DefaultDelegatingAuditTrailManager(jdbcAuditTrailManager());
+    public AuditTrailExecutionPlanConfigurer jdbcAuditTrailExecutionPlanConfigurer() {
+        return plan -> plan.registerAuditTrailManager(jdbcAuditTrailManager());
     }
 
     @Lazy
     @Bean
     public LocalContainerEntityManagerFactoryBean inspektrAuditEntityManagerFactory() {
-        return Beans.newHibernateEntityManagerFactoryBean(
+        return JpaBeans.newHibernateEntityManagerFactoryBean(
                 new JpaConfigDataHolder(
-                        Beans.newHibernateJpaVendorAdapter(casProperties.getJdbc()),
+                        JpaBeans.newHibernateJpaVendorAdapter(casProperties.getJdbc()),
                         "jpaInspektrAuditContext",
-                        new String[]{"org.apereo.cas.audit.entity"},
+                        CollectionUtils.wrap(AuditTrailEntity.class.getPackage().getName()),
                         inspektrAuditTrailDataSource()),
                 casProperties.getAudit().getJdbc());
     }
@@ -87,9 +89,8 @@ public class CasSupportJdbcAuditConfiguration {
     }
 
     @Bean
-    @RefreshScope
     public DataSource inspektrAuditTrailDataSource() {
-        return Beans.newDataSource(casProperties.getAudit().getJdbc());
+        return JpaBeans.newDataSource(casProperties.getAudit().getJdbc());
     }
 
     @Bean

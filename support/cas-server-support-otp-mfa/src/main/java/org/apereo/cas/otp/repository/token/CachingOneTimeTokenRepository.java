@@ -1,6 +1,7 @@
 package org.apereo.cas.otp.repository.token;
 
-import com.google.common.cache.LoadingCache;
+
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +16,7 @@ import java.util.Collection;
  */
 public class CachingOneTimeTokenRepository extends BaseOneTimeTokenRepository {
     private static final Logger LOGGER = LoggerFactory.getLogger(CachingOneTimeTokenRepository.class);
-    
+
     private final LoadingCache<String, Collection<OneTimeToken>> storage;
 
     public CachingOneTimeTokenRepository(final LoadingCache<String, Collection<OneTimeToken>> storage) {
@@ -26,7 +27,7 @@ public class CachingOneTimeTokenRepository extends BaseOneTimeTokenRepository {
     public void cleanInternal() {
         LOGGER.debug("Beginning to clean up the cache storage to remove expiring tokens");
         this.storage.cleanUp();
-        LOGGER.debug("Total of [{}] token(s) remain in the cache and may be removed in future iterations", this.storage.size());
+        LOGGER.debug("Estimated total of [{}] token(s) remain in the cache and may be removed in future iterations", this.storage.estimatedSize());
     }
 
     @Override
@@ -51,14 +52,20 @@ public class CachingOneTimeTokenRepository extends BaseOneTimeTokenRepository {
     }
 
     @Override
-    public boolean exists(final String uid, final Integer otp) {
+    public OneTimeToken get(final String uid, final Integer otp) {
         try {
             final Collection<OneTimeToken> tokens = this.storage.getIfPresent(uid);
             LOGGER.debug("Found used tokens [{}]", tokens);
-            return tokens != null && tokens.stream().anyMatch(t -> t.getToken().equals(otp));
+            if (tokens != null) {
+                return tokens
+                        .stream()
+                        .filter(t -> t.getToken().equals(otp))
+                        .findFirst()
+                        .orElse(null);
+            }
         } catch (final Exception e) {
             LOGGER.warn(e.getMessage(), e);
         }
-        return false;
+        return null;
     }
 }

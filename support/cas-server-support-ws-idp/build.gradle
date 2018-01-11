@@ -5,18 +5,29 @@ dependencies {
     implementation libraries.apachecxf
     implementation libraries.apachefediz
     implementation libraries.casclient
-    compile project(":core:cas-server-core-web")
-    compile project(":core:cas-server-core-util")
-    compile project(":core:cas-server-core-services")
-    compile project(":core:cas-server-core-authentication")
-    compile project(":support:cas-server-support-validation")
-    compile project(":support:cas-server-support-saml-core")
-    compile project(":support:cas-server-support-ws-sts")
-    compile project(":support:cas-server-support-ws-idp-api")
-    compile project(":support:cas-server-support-cookie")
+    
+    implementation project(":core:cas-server-core-web-api")
+    implementation project(":core:cas-server-core-util-api")
+    implementation project(":core:cas-server-core-configuration-api")
+    implementation project(":core:cas-server-core-services")
+    implementation project(":core:cas-server-core-webflow")
+    implementation project(":core:cas-server-core-webflow-api")
+    
+    api project(":api:cas-server-core-api-webflow")
+
+    implementation project(":core:cas-server-core-authentication-api")
+    implementation project(":support:cas-server-support-validation")
+    implementation project(":support:cas-server-support-saml-core")
+    implementation project(":support:cas-server-support-ws-sts")
+    implementation project(":support:cas-server-support-ws-idp-api")
+    implementation project(":core:cas-server-core-cookie-api")
+    
     
     testImplementation project(path: ":core:cas-server-core")
-    testImplementation project(":core:cas-server-core-logout")
+    testImplementation project(":core:cas-server-core-authentication")
+    testImplementation project(":core:cas-server-core-util")
+    testImplementation project(":core:cas-server-core-logout-api")
     testImplementation project(path: ":core:cas-server-core-authentication", configuration: "tests")
     testImplementation project(path: ":core:cas-server-core-services", configuration: "tests")
+    testImplementation project(path: ":core:cas-server-core-authentication-api", configuration: "tests")
 }

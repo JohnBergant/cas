@@ -87,7 +87,7 @@ public class AbstractRegisteredServiceTests {
     }
 
     @Test
-    public void verifyEquals() throws Exception {
+    public void verifyEquals() {
         assertTrue(r.equals(r.clone()));
         assertNotNull(new RegexRegisteredService());
         assertFalse(new RegexRegisteredService().equals(new Object()));
@@ -145,7 +145,7 @@ public class AbstractRegisteredServiceTests {
         final Map<String, Object> attr = this.r.getAttributeReleasePolicy().getAttributes(p,
                 RegisteredServiceTestUtils.getService(),
                 RegisteredServiceTestUtils.getRegisteredService(SERVICE_ID));
-        assertEquals(attr.size(), 2);
+        assertEquals(2, attr.size());
         assertTrue(attr.containsKey(ATTR_1));
         assertTrue(attr.containsKey(ATTR_3));
     }
@@ -173,7 +173,7 @@ public class AbstractRegisteredServiceTests {
         final Map<String, Object> attr = this.r.getAttributeReleasePolicy().getAttributes(p,
                 RegisteredServiceTestUtils.getService(),
                 RegisteredServiceTestUtils.getRegisteredService(SERVICE_ID));
-        assertEquals(attr.size(), 1);
+        assertEquals(1, attr.size());
         assertTrue(attr.containsKey("newAttr1"));
     }
 
@@ -192,12 +192,12 @@ public class AbstractRegisteredServiceTests {
     }
 
     @Test
-    public void verifyServiceWithInvalidIdStillHasTheSameIdAfterCallingMatches() throws Exception {
+    public void verifyServiceWithInvalidIdStillHasTheSameIdAfterCallingMatches() {
         final String invalidId = "***";
         final AbstractRegisteredService service = RegisteredServiceTestUtils.getRegisteredService(invalidId);
 
         service.matches("notRelevant");
 
-        assertEquals(service.getServiceId(), invalidId);
+        assertEquals(invalidId, service.getServiceId());
     }
 }

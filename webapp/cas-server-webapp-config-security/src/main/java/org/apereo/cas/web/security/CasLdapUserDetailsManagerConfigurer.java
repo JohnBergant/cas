@@ -5,7 +5,8 @@ import org.apereo.cas.authorization.LdapUserAttributesToRolesAuthorizationGenera
 import org.apereo.cas.authorization.LdapUserGroupsToRolesAuthorizationGenerator;
 import org.apereo.cas.configuration.model.core.web.security.AdminPagesSecurityProperties;
 import org.apereo.cas.configuration.model.support.ldap.LdapAuthorizationProperties;
-import org.apereo.cas.configuration.support.Beans;
+import org.apereo.cas.util.CollectionUtils;
+import org.apereo.cas.util.LdapUtils;
 import org.apereo.cas.web.ldap.LdapAuthenticationProvider;
 import org.ldaptive.ConnectionFactory;
 import org.ldaptive.SearchExecutor;
@@ -19,7 +20,6 @@ import org.springframework.security.config.annotation.SecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.authentication.ProviderManagerBuilder;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 /**
  * This is {@link CasLdapUserDetailsManagerConfigurer}.
@@ -43,7 +43,7 @@ public class CasLdapUserDetailsManagerConfigurer<B extends ProviderManagerBuilde
 
     private AuthorizationGenerator<CommonProfile> build() {
         final LdapAuthorizationProperties ldapAuthz = adminPagesSecurityProperties.getLdap().getLdapAuthz();
-        final ConnectionFactory connectionFactory = Beans.newLdaptivePooledConnectionFactory(adminPagesSecurityProperties.getLdap());
+        final ConnectionFactory connectionFactory = LdapUtils.newLdaptivePooledConnectionFactory(adminPagesSecurityProperties.getLdap());
 
         if (isGroupBasedAuthorization()) {
             LOGGER.debug("Handling LDAP authorization based on groups");
@@ -69,18 +69,18 @@ public class CasLdapUserDetailsManagerConfigurer<B extends ProviderManagerBuilde
 
     private SearchExecutor ldapAuthorizationGeneratorUserSearchExecutor() {
         final LdapAuthorizationProperties ldapAuthz = adminPagesSecurityProperties.getLdap().getLdapAuthz();
-        return Beans.newLdaptiveSearchExecutor(ldapAuthz.getBaseDn(), ldapAuthz.getSearchFilter(),
-                new ArrayList<>(0), Arrays.asList(ldapAuthz.getRoleAttribute()));
+        return LdapUtils.newLdaptiveSearchExecutor(ldapAuthz.getBaseDn(), ldapAuthz.getSearchFilter(),
+                new ArrayList<>(0), CollectionUtils.wrap(ldapAuthz.getRoleAttribute()));
     }
 
     private SearchExecutor ldapAuthorizationGeneratorGroupSearchExecutor() {
         final LdapAuthorizationProperties ldapAuthz = adminPagesSecurityProperties.getLdap().getLdapAuthz();
-        return Beans.newLdaptiveSearchExecutor(ldapAuthz.getGroupBaseDn(), ldapAuthz.getGroupFilter(),
-                new ArrayList<>(0), Arrays.asList(ldapAuthz.getGroupAttribute()));
+        return LdapUtils.newLdaptiveSearchExecutor(ldapAuthz.getGroupBaseDn(), ldapAuthz.getGroupFilter(),
+                new ArrayList<>(0), CollectionUtils.wrap(ldapAuthz.getGroupAttribute()));
     }
 
     @Override
-    public void configure(final B builder) throws Exception {
+    public void configure(final B builder) {
         final AuthenticationProvider provider = postProcess(buildLdapAuthenticationProvider());
         builder.authenticationProvider(provider);
     }

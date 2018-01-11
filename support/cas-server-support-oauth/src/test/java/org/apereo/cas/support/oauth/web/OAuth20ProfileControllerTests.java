@@ -8,12 +8,12 @@ import org.apereo.cas.authentication.BasicIdentifiableCredential;
 import org.apereo.cas.authentication.CoreAuthenticationTestUtils;
 import org.apereo.cas.authentication.CredentialMetaData;
 import org.apereo.cas.authentication.DefaultAuthenticationBuilder;
-import org.apereo.cas.authentication.DefaultHandlerResult;
-import org.apereo.cas.authentication.HandlerResult;
+import org.apereo.cas.authentication.DefaultAuthenticationHandlerExecutionResult;
+import org.apereo.cas.authentication.AuthenticationHandlerExecutionResult;
 import org.apereo.cas.authentication.principal.Principal;
 import org.apereo.cas.mock.MockTicketGrantingTicket;
 import org.apereo.cas.support.oauth.OAuth20Constants;
-import org.apereo.cas.support.oauth.web.endpoints.OAuth20UserProfileControllerController;
+import org.apereo.cas.support.oauth.web.endpoints.OAuth20UserProfileEndpointController;
 import org.apereo.cas.ticket.accesstoken.AccessToken;
 import org.apereo.cas.ticket.accesstoken.AccessTokenFactory;
 import org.apereo.cas.ticket.accesstoken.DefaultAccessTokenFactory;
@@ -35,7 +35,7 @@ import java.util.Map;
 import static org.junit.Assert.*;
 
 /**
- * This class tests the {@link OAuth20UserProfileControllerController} class.
+ * This class tests the {@link OAuth20UserProfileEndpointController} class.
  *
  * @author Jerome Leleu
  * @since 3.5.2
@@ -57,7 +57,7 @@ public class OAuth20ProfileControllerTests extends AbstractOAuth20Tests {
     private AccessTokenFactory accessTokenFactory;
 
     @Autowired
-    private OAuth20UserProfileControllerController oAuth20ProfileController;
+    private OAuth20UserProfileEndpointController oAuth20ProfileController;
 
     @Test
     public void verifyNoGivenAccessToken() throws Exception {
@@ -90,7 +90,7 @@ public class OAuth20ProfileControllerTests extends AbstractOAuth20Tests {
         final Authentication authentication = getAuthentication(principal);
         final DefaultAccessTokenFactory expiringAccessTokenFactory = new DefaultAccessTokenFactory(new AlwaysExpiresExpirationPolicy());
         final AccessToken accessToken = expiringAccessTokenFactory.create(CoreAuthenticationTestUtils.getService(), authentication,
-                new MockTicketGrantingTicket("casuser"));
+                new MockTicketGrantingTicket("casuser"), new ArrayList<>());
         this.ticketRegistry.addTicket(accessToken);
 
         final MockHttpServletRequest mockRequest = new MockHttpServletRequest(GET, CONTEXT + OAuth20Constants.PROFILE_URL);
@@ -113,7 +113,7 @@ public class OAuth20ProfileControllerTests extends AbstractOAuth20Tests {
         final Principal principal = CoreAuthenticationTestUtils.getPrincipal(ID, map);
         final Authentication authentication = getAuthentication(principal);
         final AccessToken accessToken = accessTokenFactory.create(CoreAuthenticationTestUtils.getService(), authentication,
-                new MockTicketGrantingTicket("casuser"));
+                new MockTicketGrantingTicket("casuser"), new ArrayList<>());
         this.ticketRegistry.addTicket(accessToken);
 
         final MockHttpServletRequest mockRequest = new MockHttpServletRequest(GET, CONTEXT + OAuth20Constants.PROFILE_URL);
@@ -147,7 +147,7 @@ public class OAuth20ProfileControllerTests extends AbstractOAuth20Tests {
         final Principal principal = CoreAuthenticationTestUtils.getPrincipal(ID, map);
         final Authentication authentication = getAuthentication(principal);
         final AccessToken accessToken = accessTokenFactory.create(CoreAuthenticationTestUtils.getService(), authentication,
-                new MockTicketGrantingTicket("casuser"));
+                new MockTicketGrantingTicket("casuser"), new ArrayList<>());
         this.ticketRegistry.addTicket(accessToken);
 
         final MockHttpServletRequest mockRequest = new MockHttpServletRequest(GET, CONTEXT + OAuth20Constants.PROFILE_URL);
@@ -170,9 +170,9 @@ public class OAuth20ProfileControllerTests extends AbstractOAuth20Tests {
         assertEquals(expectedAttributes.findValues(NAME2), receivedAttributes.findValues(NAME2));
     }
 
-    private static Authentication getAuthentication(final Principal principal) {
+    protected static Authentication getAuthentication(final Principal principal) {
         final CredentialMetaData metadata = new BasicCredentialMetaData(new BasicIdentifiableCredential(principal.getId()));
-        final HandlerResult handlerResult = new DefaultHandlerResult(principal.getClass().getCanonicalName(),
+        final AuthenticationHandlerExecutionResult handlerResult = new DefaultAuthenticationHandlerExecutionResult(principal.getClass().getCanonicalName(),
                 metadata, principal, new ArrayList<>());
 
         return DefaultAuthenticationBuilder.newInstance()

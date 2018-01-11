@@ -4,16 +4,21 @@ dependencies {
     implementation libraries.memcached
     implementation libraries.kryo
 
-    compile project(":core:cas-server-core-logging")
-    compile project(":core:cas-server-core-tickets")
-    compile project(":core:cas-server-core-services")
-    compile project(":core:cas-server-core-configuration")
+    api project(":api:cas-server-core-api-logout")
+    implementation project(":core:cas-server-core-logging")
+    implementation project(":support:cas-server-support-memcached-core")
+    implementation project(":core:cas-server-core-authentication-attributes")
+    implementation project(":core:cas-server-core-authentication-api")
+    implementation project(":core:cas-server-core-services-authentication")
+    implementation project(":core:cas-server-core-tickets-api")
+    implementation project(":core:cas-server-core-services")
+    implementation project(":core:cas-server-core-util-api")
+    implementation project(":core:cas-server-core-configuration-api")
 
     testImplementation project(":core:cas-server-core-util")
-    testCompileOnly libraries.metrics
+    testImplementation project(":core:cas-server-core-configuration")
+    testImplementation project(path: ":core:cas-server-core-authentication-api", configuration: "tests")
     testImplementation project(path: ":core:cas-server-core-authentication", configuration: "tests")
     testImplementation project(path: ":core:cas-server-core-tickets", configuration: "tests")
     testImplementation project(path: ":core:cas-server-core-services", configuration: "tests")
-    compileOnly project(":support:cas-server-support-saml")
-    compileOnly project(":support:cas-server-support-saml-googleapps-core")
 }

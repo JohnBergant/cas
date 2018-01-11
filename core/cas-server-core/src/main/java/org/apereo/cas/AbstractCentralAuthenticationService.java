@@ -7,8 +7,6 @@ import org.apereo.cas.authentication.Authentication;
 import org.apereo.cas.authentication.AuthenticationServiceSelectionPlan;
 import org.apereo.cas.authentication.ContextualAuthenticationPolicy;
 import org.apereo.cas.authentication.ContextualAuthenticationPolicyFactory;
-import org.apereo.cas.authentication.policy.AcceptAnyAuthenticationPolicyFactory;
-import org.apereo.cas.authentication.principal.DefaultPrincipalFactory;
 import org.apereo.cas.authentication.principal.PrincipalFactory;
 import org.apereo.cas.authentication.principal.Service;
 import org.apereo.cas.logout.LogoutManager;
@@ -47,9 +45,7 @@ import java.util.stream.Collectors;
  * @author Misagh Moayyed
  * @since 4.2.0
  */
-public abstract class AbstractCentralAuthenticationService implements CentralAuthenticationService, Serializable,
-        ApplicationEventPublisherAware {
-
+public abstract class AbstractCentralAuthenticationService implements CentralAuthenticationService, Serializable, ApplicationEventPublisherAware {
     private static final long serialVersionUID = -7572316677901391166L;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractCentralAuthenticationService.class);
@@ -63,22 +59,22 @@ public abstract class AbstractCentralAuthenticationService implements CentralAut
     /**
      * {@link TicketRegistry}  for storing and retrieving tickets as needed.
      */
-    protected TicketRegistry ticketRegistry;
+    protected final TicketRegistry ticketRegistry;
 
     /**
      * Implementation of Service Manager.
      */
-    protected ServicesManager servicesManager;
-
+    protected final ServicesManager servicesManager;
+                                    
     /**
      * The logout manager.
      **/
-    protected LogoutManager logoutManager;
+    protected final LogoutManager logoutManager;
 
     /**
      * The ticket factory.
      **/
-    protected TicketFactory ticketFactory;
+    protected final TicketFactory ticketFactory;
 
     /**
      * The service selection strategy during validation events.
@@ -89,18 +85,17 @@ public abstract class AbstractCentralAuthenticationService implements CentralAut
      * Authentication policy that uses a service context to produce stateful security policies to apply when
      * authenticating credentials.
      */
-    protected ContextualAuthenticationPolicyFactory<ServiceContext> serviceContextAuthenticationPolicyFactory
-            = new AcceptAnyAuthenticationPolicyFactory();
+    protected final ContextualAuthenticationPolicyFactory<ServiceContext> serviceContextAuthenticationPolicyFactory;
 
     /**
      * Factory to create the principal type.
      **/
-    protected PrincipalFactory principalFactory = new DefaultPrincipalFactory();
+    protected final PrincipalFactory principalFactory;
 
     /**
      * Cipher executor to handle ticket validation.
      */
-    protected CipherExecutor<String, String> cipherExecutor;
+    protected final CipherExecutor<String, String> cipherExecutor;
 
     /**
      * Build the central authentication service implementation.
@@ -151,11 +146,11 @@ public abstract class AbstractCentralAuthenticationService implements CentralAut
     @Metered(name = "GET_TICKET_METER")
     @Counted(name = "GET_TICKET_COUNTER", monotonic = true)
     @Override
-    public <T extends Ticket> T getTicket(final String ticketId) throws InvalidTicketException {
+    public Ticket getTicket(final String ticketId) throws InvalidTicketException {
         Assert.notNull(ticketId, "ticketId cannot be null");
         final Ticket ticket = this.ticketRegistry.getTicket(ticketId);
         verifyTicketState(ticket, ticketId, null);
-        return (T) ticket;
+        return ticket;
     }
 
     /**

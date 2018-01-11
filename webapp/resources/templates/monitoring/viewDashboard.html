@@ -10,7 +10,7 @@
 
     <div class="viewDashboard">
 
-        <div class="app-launcher">
+        <div class="app-launcher clearfix">
             <h1 th:inline="text"><i class="fa fa-dashboard"></i>[[#{cas.dashboard.section.dashboard.title}]]</h1>
 
             <div class="alert alert-warning" th:if="${!dashboardEndpointsEnabled}">
@@ -19,9 +19,8 @@
                     Revisit the CAS configuration/documentation and explicitly enable access for desired endpoints and knobs.
                 </p>
             </div>
-
             <ul>
-                <li th:if="${healthcheckEndpointEnabled}">
+                <li th:if="${healthCheckEndpointEnabled}">
                     <a th:href="@{/status}" class="casTooltip">Status
                         <span class="tooltiptext" th:text="#{cas.dashboard.tooltip.status}"></span>
                     </a>
@@ -88,6 +87,12 @@
                         <span class="tooltiptext" th:text="#{cas.dashboard.tooltip.configpanel}"></span>
                     </a>
                 </li>
+                <li th:if="${configurationMetadataEndpointEnabled}">
+                    <a th:href="@{/status/configmetadata}" class="casTooltip">Configuration Metadata
+                        <span class="tooltiptext" th:text="#{cas.dashboard.tooltip.configmetadata}"></span>
+                    </a>
+                </li>
+                
                 <li th:if="${singleSignOnReportEnabled}">
                     <a th:href="@{/status/ssosessions}" class="casTooltip">SSO Sessions
                         <span class="tooltiptext" th:text="#{cas.dashboard.tooltip.ssosessions}"></span>
@@ -114,10 +119,17 @@
                     </a>
                 </li>
                 <li th:if="${attributeResolutionEndpointEnabled}">
-                    <a th:href="@{/status/attrresolution}" class="casTooltip">Attribute Resolution
+                    <a th:href="@{/status/attrresolution}" class="casTooltip">Attribute Resolution & Release
                         <span class="tooltiptext" th:text="#{cas.dashboard.tooltip.attrresolution}"></span>
                     </a>
                 </li>
+                <li th:if="${discoveryProfileEndpointEnabled}">
+                    <a th:href="@{/status/discovery}" class="casTooltip">Discovery Profile 
+                        <span class="tooltiptext" th:text="#{cas.dashboard.tooltip.discovery}"></span>
+                    </a>
+                </li>
+                
+                
                 <li th:if="${trustedDevicesEnabled}">
                     <a th:href="@{/status/trustedDevs}" class="casTooltip">Trusted Devices
                         <span class="tooltiptext" th:text="#{cas.dashboard.tooltip.trusteddevs}"></span>
@@ -130,7 +142,7 @@
                 </li>
             </ul>
         </div>
-        
+
         <div class="server-functions" th:if="${restartEndpointEnabled or shutdownEndpointEnabled}">
             <h2 th:inline="text"><i class="fa fa-server"></i>[[#{cas.dashboard.section.server.functions.title}]]</h2>
             <ul>
@@ -182,7 +194,6 @@
             });
         </script>
     </div>
-
 </div>
 </body>
 </html>

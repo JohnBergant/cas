@@ -10,14 +10,16 @@ import org.apereo.cas.authentication.AuthenticationTransaction;
 import org.apereo.cas.authentication.AuthenticationTransactionManager;
 import org.apereo.cas.authentication.CoreAuthenticationTestUtils;
 import org.apereo.cas.authentication.principal.Service;
+import org.apereo.cas.services.AbstractRegisteredService;
 import org.apereo.cas.services.RegisteredServiceTestUtils;
+import org.apereo.cas.services.ServicesManager;
 import org.apereo.cas.ticket.ExpirationPolicy;
 import org.apereo.cas.ticket.TicketGrantingTicket;
 import org.apereo.cas.ticket.TicketGrantingTicketImpl;
+import org.apereo.cas.web.support.WebUtils;
 import org.junit.Test;
 import org.pac4j.core.client.Clients;
 import org.pac4j.core.context.WebContext;
-import org.pac4j.core.exception.HttpAction;
 import org.pac4j.oauth.client.FacebookClient;
 import org.pac4j.oauth.client.TwitterClient;
 import org.pac4j.oauth.credentials.OAuth20Credentials;
@@ -44,7 +46,6 @@ import static org.mockito.Mockito.*;
  */
 public class DelegatedClientAuthenticationActionTests {
 
-    private static final String TGT_NAME = "ticketGrantingTicketId";
     private static final String TGT_ID = "TGT-00-xxxxxxxxxxxxxxxxxxxxxxxxxx.cas0";
 
     private static final String MY_KEY = "my_key";
@@ -78,15 +79,16 @@ public class DelegatedClientAuthenticationActionTests {
 
         final MockRequestContext mockRequestContext = new MockRequestContext();
         mockRequestContext.setExternalContext(servletExternalContext);
-        mockRequestContext.getFlowScope().put(CasProtocolConstants.PARAMETER_SERVICE,
-                RegisteredServiceTestUtils.getService(MY_SERVICE));
+        final Service service = RegisteredServiceTestUtils.getService(MY_SERVICE);
+        mockRequestContext.getFlowScope().put(CasProtocolConstants.PARAMETER_SERVICE, service);
 
         final FacebookClient facebookClient = new FacebookClient(MY_KEY, MY_SECRET);
         final TwitterClient twitterClient = new TwitterClient("3nJPbVTVRZWAyUgoUKQ8UA", "h6LZyZJmcW46Vu8R47MYfeXTSYGI30EqnWaSwVhFkbA");
         final Clients clients = new Clients(MY_LOGIN_URL, facebookClient, twitterClient);
         final DelegatedClientAuthenticationAction action = new DelegatedClientAuthenticationAction(clients,
-                null, mock(CentralAuthenticationService.class),
-                "theme", "locale", false);
+            null, mock(CentralAuthenticationService.class),
+            ThemeChangeInterceptor.DEFAULT_PARAM_NAME, LocaleChangeInterceptor.DEFAULT_PARAM_NAME,
+            false, getServicesManagerWith(service));
 
         final Event event = action.execute(mockRequestContext);
         assertEquals("error", event.getId());
@@ -95,7 +97,8 @@ public class DelegatedClientAuthenticationActionTests {
         assertEquals(MY_METHOD, mockSession.getAttribute(CasProtocolConstants.PARAMETER_METHOD));
         final MutableAttributeMap flowScope = mockRequestContext.getFlowScope();
         final Set<DelegatedClientAuthenticationAction.ProviderLoginPageConfiguration> urls =
-                (Set<DelegatedClientAuthenticationAction.ProviderLoginPageConfiguration>) flowScope.get(DelegatedClientAuthenticationAction.PAC4J_URLS);
+            (Set<DelegatedClientAuthenticationAction.ProviderLoginPageConfiguration>)
+                flowScope.get(DelegatedClientAuthenticationAction.PAC4J_URLS);
 
         assertFalse(urls.isEmpty());
         assertSame(2, urls.size());
@@ -123,7 +126,7 @@ public class DelegatedClientAuthenticationActionTests {
 
         final FacebookClient facebookClient = new FacebookClient() {
             @Override
-            protected OAuth20Credentials retrieveCredentials(final WebContext context) throws HttpAction {
+            protected OAuth20Credentials retrieveCredentials(final WebContext context) {
                 return new OAuth20Credentials("fakeVerifier", FacebookClient.class.getSimpleName());
             }
         };
@@ -144,7 +147,8 @@ public class DelegatedClientAuthenticationActionTests {
         when(support.getAuthenticationTransactionManager()).thenReturn(transManager);
 
         final DelegatedClientAuthenticationAction action = new DelegatedClientAuthenticationAction(clients, support, casImpl,
-                "theme", "locale", false);
+            "theme", "locale", false,
+            getServicesManagerWith(service));
 
         final Event event = action.execute(mockRequestContext);
         assertEquals("success", event.getId());
@@ -155,7 +159,21 @@ public class DelegatedClientAuthenticationActionTests {
         final MutableAttributeMap flowScope = mockRequestContext.getFlowScope();
         final MutableAttributeMap requestScope = mockRequestContext.getRequestScope();
         assertEquals(service, flowScope.get(CasProtocolConstants.PARAMETER_SERVICE));
-        assertEquals(TGT_ID, flowScope.get(TGT_NAME));
-        assertEquals(TGT_ID, requestScope.get(TGT_NAME));
+        assertEquals(TGT_ID, flowScope.get(WebUtils.PARAMETER_TICKET_GRANTING_TICKET_ID));
+        assertEquals(TGT_ID, requestScope.get(WebUtils.PARAMETER_TICKET_GRANTING_TICKET_ID));
     }
+
+    private ServicesManager getServicesManagerWith(final Service service) {
+        final ServicesManager mgr = mock(ServicesManager.class);
+        final AbstractRegisteredService regSvc = RegisteredServiceTestUtils.getRegisteredService(service.getId());
+        when(mgr.findServiceBy(service)).thenReturn(regSvc);
+        return mgr;
+    }
+
+//    private ServicesManager getServicesManagerWith(final String service) {
+//        final ServicesManager mgr = mock(ServicesManager.class);
+//        final AbstractRegisteredService regSvc = RegisteredServiceTestUtils.getRegisteredService(service);
+//        when(mgr.findServiceBy(service)).thenReturn(regSvc);
+//        return mgr;
+//    }
 }

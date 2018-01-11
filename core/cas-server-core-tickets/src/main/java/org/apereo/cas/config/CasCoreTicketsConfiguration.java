@@ -7,7 +7,7 @@ import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.configuration.model.core.ticket.TicketGrantingTicketProperties;
 import org.apereo.cas.configuration.model.core.ticket.registry.TicketRegistryProperties;
 import org.apereo.cas.configuration.model.core.util.EncryptionJwtSigningJwtCryptographyProperties;
-import org.apereo.cas.configuration.support.Beans;
+import org.apereo.cas.logout.LogoutManager;
 import org.apereo.cas.ticket.DefaultTicketCatalog;
 import org.apereo.cas.ticket.ExpirationPolicy;
 import org.apereo.cas.ticket.ServiceTicketFactory;
@@ -26,6 +26,7 @@ import org.apereo.cas.ticket.proxy.ProxyHandler;
 import org.apereo.cas.ticket.proxy.ProxyTicketFactory;
 import org.apereo.cas.ticket.proxy.support.Cas10ProxyHandler;
 import org.apereo.cas.ticket.proxy.support.Cas20ProxyHandler;
+import org.apereo.cas.ticket.registry.CachingTicketRegistry;
 import org.apereo.cas.ticket.registry.DefaultTicketRegistry;
 import org.apereo.cas.ticket.registry.DefaultTicketRegistrySupport;
 import org.apereo.cas.ticket.registry.NoOpLockingStrategy;
@@ -40,6 +41,7 @@ import org.apereo.cas.ticket.support.RememberMeDelegatingExpirationPolicy;
 import org.apereo.cas.ticket.support.ThrottledUseAndTimeoutExpirationPolicy;
 import org.apereo.cas.ticket.support.TicketGrantingTicketExpirationPolicy;
 import org.apereo.cas.ticket.support.TimeoutExpirationPolicy;
+import org.apereo.cas.util.CoreTicketUtils;
 import org.apereo.cas.util.HostNameBasedUniqueTicketIdGenerator;
 import org.apereo.cas.util.cipher.NoOpCipherExecutor;
 import org.apereo.cas.util.cipher.ProtocolTicketCipherExecutor;
@@ -55,6 +57,7 @@ import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
@@ -88,6 +91,9 @@ public class CasCoreTicketsConfiguration implements TransactionManagementConfigu
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CasCoreTicketsConfiguration.class);
 
+    @Autowired
+    private ApplicationContext applicationContext;
+    
     @Autowired
     private CasConfigurationProperties casProperties;
 
@@ -215,13 +221,15 @@ public class CasCoreTicketsConfiguration implements TransactionManagementConfigu
     @Bean
     public TicketRegistry ticketRegistry() {
         LOGGER.warn("Runtime memory is used as the persistence storage for retrieving and managing tickets. "
-                + "Tickets that are issued during runtime will be LOST upon container restarts. This MAY impact SSO functionality.");
+                + "Tickets that are issued during runtime will be LOST when the web server is restarted. This MAY impact SSO functionality.");
         final TicketRegistryProperties.InMemory mem = casProperties.getTicket().getRegistry().getInMemory();
-        return new DefaultTicketRegistry(
-                mem.getInitialCapacity(),
-                mem.getLoadFactor(),
-                mem.getConcurrency(),
-                Beans.newTicketRegistryCipherExecutor(mem.getCrypto()));
+        final CipherExecutor cipher = CoreTicketUtils.newTicketRegistryCipherExecutor(mem.getCrypto(), "inMemory");
+
+        if (mem.isCache()) {
+            final LogoutManager logoutManager = applicationContext.getBean("logoutManager", LogoutManager.class);
+            return new CachingTicketRegistry(cipher, logoutManager);
+        }
+        return new DefaultTicketRegistry(mem.getInitialCapacity(), mem.getLoadFactor(), mem.getConcurrency(), cipher);
     }
 
     @ConditionalOnMissingBean(name = "defaultTicketRegistrySupport")
@@ -235,13 +243,20 @@ public class CasCoreTicketsConfiguration implements TransactionManagementConfigu
     public ExpirationPolicy grantingTicketExpirationPolicy() {
         final TicketGrantingTicketProperties tgt = casProperties.getTicket().getTgt();
         if (tgt.getRememberMe().isEnabled()) {
-            final RememberMeDelegatingExpirationPolicy p = new RememberMeDelegatingExpirationPolicy();
-            p.setRememberMeExpirationPolicy(new HardTimeoutExpirationPolicy(tgt.getRememberMe().getTimeToKillInSeconds()));
-            p.setSessionExpirationPolicy(buildTicketGrantingTicketExpirationPolicy());
-            return p;
+            return rememberMeExpirationPolicy();
         }
+        return ticketGrantingTicketExpirationPolicy();
+    }
 
-        return buildTicketGrantingTicketExpirationPolicy();
+    @Bean
+    public ExpirationPolicy rememberMeExpirationPolicy() {
+        final TicketGrantingTicketProperties tgt = casProperties.getTicket().getTgt();
+
+        final HardTimeoutExpirationPolicy rememberMePolicy = new HardTimeoutExpirationPolicy(tgt.getRememberMe().getTimeToKillInSeconds());
+        final RememberMeDelegatingExpirationPolicy p = new RememberMeDelegatingExpirationPolicy(rememberMePolicy);
+        p.addPolicy(RememberMeDelegatingExpirationPolicy.PolicyTypes.REMEMBER_ME, rememberMePolicy);
+        p.addPolicy(RememberMeDelegatingExpirationPolicy.PolicyTypes.DEFAULT, ticketGrantingTicketExpirationPolicy());
+        return p;
     }
 
     @ConditionalOnMissingBean(name = "serviceTicketExpirationPolicy")
@@ -287,7 +302,9 @@ public class CasCoreTicketsConfiguration implements TransactionManagementConfigu
         return NoOpCipherExecutor.getInstance();
     }
 
-    private ExpirationPolicy buildTicketGrantingTicketExpirationPolicy() {
+    @ConditionalOnMissingBean(name = "ticketGrantingTicketExpirationPolicy")
+    @Bean
+    public ExpirationPolicy ticketGrantingTicketExpirationPolicy() {
         final TicketGrantingTicketProperties tgt = casProperties.getTicket().getTgt();
         if (tgt.getMaxTimeToLiveInSeconds() <= 0 && tgt.getTimeToKillInSeconds() <= 0) {
             LOGGER.warn("Ticket-granting ticket expiration policy is set to NEVER expire tickets.");

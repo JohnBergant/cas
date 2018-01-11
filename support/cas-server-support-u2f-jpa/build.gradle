@@ -3,9 +3,15 @@ description = "Apereo CAS U2F FIDO Jpa Support"
 dependencies {
     implementation libraries.yubicoapi
     implementation libraries.u2flibserver
+    implementation libraries.caffein
     runtimeOnly project(":support:cas-server-support-jdbc-drivers")
-    compile project(":core:cas-server-core-util")
-    compile project(":core:cas-server-core-authentication")
-    compile project(":core:cas-server-core-webflow")
-    compile project(":support:cas-server-support-u2f")
+    implementation project(":core:cas-server-core-configuration-api")
+    implementation project(":core:cas-server-core-util-api")
+    implementation project(":core:cas-server-core-authentication-api")
+    implementation project(":core:cas-server-core-webflow")
+    implementation project(":support:cas-server-support-u2f")
+    implementation project(":support:cas-server-support-u2f-core")
+
+    testImplementation project(":core:cas-server-core-configuration")
+    testImplementation project(path: ":support:cas-server-support-u2f", configuration: "tests")
 }

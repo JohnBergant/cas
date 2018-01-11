@@ -2,8 +2,54 @@ import org.apache.tools.ant.taskdefs.condition.Os
 
 apply plugin: "war"
 apply plugin: "org.springframework.boot"
+apply plugin: "application"
+apply plugin: "com.moowork.node"
+
+def MAIN_CLASS = "org.apereo.cas.web.CasWebApplication"
 
 description = "Apereo CAS Web Application"
+mainClassName = MAIN_CLASS
+
+node {
+    version = "${nodeVersion}"
+    nodeModulesDir = project(":webapp").projectDir
+    download = true
+}
+
+if (!Boolean.getBoolean("skipNpmCache")) {
+    npm_install.dependsOn(npm_cache_clean)
+}
+
+task npmLint(type: NpmTask) {
+    dependsOn npm_install
+    description "Lint the JavaScript files"
+    group "UI"
+    args = ['run', 'lint', '--silent']
+}
+
+task compileSass(type: NpmTask) {
+    group 'UI'
+    dependsOn npm_install
+    description "Compile Sass"
+    args = ['run', 'gulp', '--silent']
+}
+
+if (!rootProject.publishingRelease && !Boolean.getBoolean("skipNpmLint")) {
+    processResources.dependsOn npmLint
+}
+
+if (!Boolean.getBoolean("skipSass")) {
+    processResources.dependsOn compileSass
+} else {
+    println("Skipping Sass compilation...")
+}
+
+if (!Boolean.getBoolean("skipNodeModulesCleanUp")) {
+    clean.delete << new File(project(":webapp").projectDir, "node_modules")
+    clean.delete << fileTree(dir: project(":webapp").projectDir.getPath() + '/resources/static/js', include: '*-bundle.js')
+} else {
+    println("Skipping node_modules cleanup...")
+}
 
 sourceSets {
     main {
@@ -17,18 +63,19 @@ javadoc {
     enabled false
 }
 
-
-if (Boolean.getBoolean("enableJRebelAgent")) {
-    war.dependsOn(generateRebel)
+[distZip, distTar].each { task ->
+    configurations.archives.artifacts.removeAll
+            { it.class.simpleName == "ArchivePublishArtifact" && it.archiveTask == task }
+    task.enabled = false
 }
 
-springBoot  {
-    mainClass = "org.apereo.cas.web.CasWebApplication"
+springBoot {
+    mainClass = MAIN_CLASS
 }
 
 bootRepackage {
-    mainClass = "org.apereo.cas.web.CasWebApplication"
-    enabled = !rootProject.publishReleases
+    mainClass = MAIN_CLASS
+    enabled = !rootProject.publishingRelease
 }
 
 bootRun {
@@ -36,7 +83,7 @@ bootRun {
     if (Os.isFamily(Os.FAMILY_WINDOWS)) {
         dependsOn pathingJar
         doFirst {
-          classpath = files("$buildDir/classes/main", "$buildDir/resources/main", pathingJar.archivePath)
+            classpath = files("$buildDir/classes/main", "$buildDir/resources/main", pathingJar.archivePath)
         }
     }
 
@@ -44,14 +91,10 @@ bootRun {
     systemProperties = System.properties
 
     def list = []
-    if (Boolean.getBoolean("enableRemoteDebugging")) {
+    if (rootProject.enableRemoteDebugging) {
         list.add("-Xrunjdwp:transport=dt_socket,address=5000,server=y,suspend=n")
     }
-    if (Boolean.getBoolean("enableJRebelAgent")) {
-        def lib = System.getProperty("JREBEL_LIB_PATH")
-        list.add("-agentpath:$lib")
-        list.add("-Drebel.remoting_plugin=true")
-    }
+
     jvmArgs = list
 }
 
@@ -67,38 +110,39 @@ war {
                 "Implementation-Version": project.version)
     }
     from "${project.buildDir}/generated-src/main/resources", { into "WEB-INF/classes" }
-    enabled = !rootProject.publishReleases && !rootProject.publishSnapshots
+    enabled = !rootProject.publishingRelease && !rootProject.publishSnapshots
 }
 
 dependencies {
-    compile project(":core:cas-server-core")
-    compile project(":core:cas-server-core-monitor")
-    compile project(":core:cas-server-core-authentication")
-    compile project(":core:cas-server-core-services")
-    compile project(":core:cas-server-core-logout")
-    compile project(":core:cas-server-core-audit")
-    compile project(":core:cas-server-core-logging")
-    compile project(":core:cas-server-core-tickets")
-    compile project(":core:cas-server-core-web")
-    compile project(":core:cas-server-core-validation")
-    compile project(":core:cas-server-core-util")
-    compile project(":core:cas-server-core-events")
-    compile project(":core:cas-server-core-events-configuration")
-    compile project(":core:cas-server-core-configuration")
-    compile project(":core:cas-server-core-configuration-metadata-server")
+    implementation project(":core:cas-server-core")
+    implementation project(":core:cas-server-core-monitor")
+    implementation project(":core:cas-server-core-authentication")
+    implementation project(":core:cas-server-core-services")
+    implementation project(":core:cas-server-core-logout")
+    implementation project(":core:cas-server-core-audit")
+    implementation project(":core:cas-server-core-logging")
+    implementation project(":core:cas-server-core-tickets")
+    implementation project(":core:cas-server-core-web")
+    implementation project(":core:cas-server-core-validation")
+    implementation project(":core:cas-server-core-util")
+    implementation project(":core:cas-server-core-cookie")
+    implementation project(":core:cas-server-core-events")
+    implementation project(":core:cas-server-core-events-configuration")
+    implementation project(":core:cas-server-core-configuration")
+    implementation project(":core:cas-server-core-configuration-metadata-repository")
 
-    compile project(":support:cas-server-support-throttle")
-    compile project(":support:cas-server-support-configuration")
-    compile project(":support:cas-server-support-geolocation")
-    compile project(":support:cas-server-support-actions")
-    compile project(":support:cas-server-support-cookie")
-    compile project(":support:cas-server-support-reports")
-    compile project(":support:cas-server-support-themes")
-    compile project(":support:cas-server-support-validation")
-    compile project(":support:cas-server-support-pm-webflow")
+    implementation project(":support:cas-server-support-throttle")
+    implementation project(":support:cas-server-support-person-directory")
+    implementation project(":support:cas-server-support-configuration")
+    implementation project(":support:cas-server-support-geolocation")
+    implementation project(":support:cas-server-support-actions")
+    implementation project(":support:cas-server-support-reports")
+    implementation project(":support:cas-server-support-themes")
+    implementation project(":support:cas-server-support-validation")
+    implementation project(":support:cas-server-support-pm-webflow")
 
-    compile project(":webapp:cas-server-webapp-config")
-    compile project(":webapp:cas-server-webapp-init")
+    implementation project(":webapp:cas-server-webapp-config")
+    implementation project(":webapp:cas-server-webapp-init")
 
     implementation libraries.pac4j
     implementation libraries.thymeleaf
@@ -106,6 +150,7 @@ dependencies {
     implementation libraries.cassecurityfilter
     implementation libraries.metrics
     implementation libraries.bouncycastle
+    implementation libraries.springcloudconfigclient
+
     runtime libraries.webjars
-    compile libraries.springcloudconfigclient
 }

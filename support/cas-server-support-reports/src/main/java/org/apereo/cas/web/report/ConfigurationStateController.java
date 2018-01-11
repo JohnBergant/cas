@@ -5,6 +5,7 @@ import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.configuration.CasConfigurationPropertiesEnvironmentManager;
 import org.apereo.cas.support.events.config.CasConfigurationModifiedEvent;
 import org.apereo.cas.util.RegexUtils;
+import org.apereo.cas.web.BaseCasMvcEndpoint;
 import org.apereo.cas.web.report.util.ControllerUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -53,11 +54,8 @@ public class ConfigurationStateController extends BaseCasMvcEndpoint {
     @Qualifier("configurationPropertiesEnvironmentManager")
     private CasConfigurationPropertiesEnvironmentManager configurationPropertiesEnvironmentManager;
 
-    private final CasConfigurationProperties casProperties;
-
     public ConfigurationStateController(final CasConfigurationProperties casProperties) {
         super("configstate", "/config", casProperties.getMonitor().getEndpoints().getConfigurationState(), casProperties);
-        this.casProperties = casProperties;
     }
 
     /**
@@ -66,10 +64,9 @@ public class ConfigurationStateController extends BaseCasMvcEndpoint {
      * @param request  the request
      * @param response the response
      * @return the model and view
-     * @throws Exception the exception
      */
     @GetMapping
-    public ModelAndView handleRequestInternal(final HttpServletRequest request, final HttpServletResponse response) throws Exception {
+    public ModelAndView handleRequestInternal(final HttpServletRequest request, final HttpServletResponse response) {
         ensureEndpointAccessIsAuthorized(request, response);
         final Map<String, Object> model = new HashMap<>();
         final String path = request.getContextPath();
@@ -81,7 +78,7 @@ public class ConfigurationStateController extends BaseCasMvcEndpoint {
 
     private Boolean isRefreshEnabled() {
         return !casProperties.getEvents().isTrackConfigurationModifications() && refreshEndpoint.isEnabled()
-                && environment.getProperty("spring.cloud.config.enabled", Boolean.class);
+            && environment.getProperty("spring.cloud.config.enabled", Boolean.class);
     }
 
     private Boolean isUpdateEnabled() {
@@ -105,18 +102,18 @@ public class ConfigurationStateController extends BaseCasMvcEndpoint {
             final Map results = new TreeMap();
             final Map<String, Object> environmentSettings = environmentEndpoint.invoke();
             environmentSettings.entrySet()
-                    .stream()
-                    .filter(entry -> pattern.matcher(entry.getKey()).matches())
-                    .forEach(entry -> {
-                        final Map<String, Object> keys = (Map<String, Object>) entry.getValue();
-                        keys.keySet().forEach(key -> {
-                            if (!results.containsKey(key)) {
-                                final String propHolder = String.format("${%s}", key);
-                                final String value = this.environment.resolvePlaceholders(propHolder);
-                                results.put(key, environmentEndpoint.sanitize(key, value));
-                            }
-                        });
+                .stream()
+                .filter(entry -> pattern.matcher(entry.getKey()).matches())
+                .forEach(entry -> {
+                    final Map<String, Object> keys = (Map<String, Object>) entry.getValue();
+                    keys.keySet().forEach(key -> {
+                        if (!results.containsKey(key)) {
+                            final String propHolder = String.format("${%s}", key);
+                            final String value = this.environment.resolvePlaceholders(propHolder);
+                            results.put(key, environmentEndpoint.sanitize(key, value));
+                        }
                     });
+                });
 
             return results;
         }

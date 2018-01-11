@@ -1,6 +1,6 @@
 package org.apereo.cas.adaptors.x509.authentication;
 
-import org.apereo.cas.adaptors.x509.util.CertUtils;
+import org.apereo.cas.util.crypto.CertUtils;
 import org.apereo.cas.util.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +28,7 @@ public class ResourceCRLFetcher implements CRLFetcher {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResourceCRLFetcher.class);
     
     @Override
-    public Collection<X509CRL> fetch(final Collection<Resource> crls) throws IOException, CRLException, CertificateException {
+    public Collection<X509CRL> fetch(final Collection<Resource> crls) throws IOException, CRLException {
         final Set<X509CRL> results = new HashSet<>();
         for (final Resource r : crls) {
             LOGGER.debug("Fetching CRL data from [{}]", r);
@@ -103,6 +103,7 @@ public class ResourceCRLFetcher implements CRLFetcher {
      * @throws CRLException the exception thrown if resources cant be fetched
      * @throws CertificateException the exception thrown if resources cant be fetched
      */
+    @Override
     public X509CRL fetch(final URL crl) throws IOException, CRLException, CertificateException {
         return fetch(new UrlResource(crl));
     }

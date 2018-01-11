@@ -5,6 +5,7 @@ import org.apereo.cas.authentication.adaptive.AdaptiveAuthenticationPolicy;
 import org.apereo.cas.support.spnego.authentication.principal.SpnegoCredential;
 import org.apereo.cas.support.spnego.util.SpnegoConstants;
 import org.apereo.cas.util.EncodingUtils;
+import org.apereo.cas.web.flow.actions.AbstractNonInteractiveCredentialsAction;
 import org.apereo.cas.web.flow.resolver.CasDelegatingWebflowEventResolver;
 import org.apereo.cas.web.flow.resolver.CasWebflowEventResolver;
 import org.apereo.cas.web.support.WebUtils;
@@ -55,7 +56,7 @@ public class SpnegoCredentialsAction extends AbstractNonInteractiveCredentialsAc
 
     @Override
     protected Credential constructCredentialsFromRequest(final RequestContext context) {
-        final HttpServletRequest request = WebUtils.getHttpServletRequest(context);
+        final HttpServletRequest request = WebUtils.getHttpServletRequestFromExternalWebflowContext(context);
 
         final String authorizationHeader = request.getHeader(SpnegoConstants.HEADER_AUTHORIZATION);
         LOGGER.debug("SPNEGO Authorization header located as [{}]", authorizationHeader);
@@ -104,7 +105,7 @@ public class SpnegoCredentialsAction extends AbstractNonInteractiveCredentialsAc
             return;
         }
 
-        final HttpServletResponse response = WebUtils.getHttpServletResponse(context);
+        final HttpServletResponse response = WebUtils.getHttpServletResponseFromExternalWebflowContext(context);
         final SpnegoCredential spnegoCredentials = (SpnegoCredential) credential;
         final byte[] nextToken = spnegoCredentials.getNextToken();
         if (nextToken != null) {

@@ -1,6 +1,5 @@
 package org.apereo.cas.adaptors.generic;
 
-import com.google.common.base.Throwables;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authc.AuthenticationException;
 import org.apache.shiro.authc.DisabledAccountException;
@@ -15,8 +14,7 @@ import org.apache.shiro.mgt.SecurityManager;
 import org.apache.shiro.subject.Subject;
 import org.apache.shiro.util.Factory;
 import org.apereo.cas.authentication.Credential;
-import org.apereo.cas.authentication.HandlerResult;
-import org.apereo.cas.authentication.PreventedException;
+import org.apereo.cas.authentication.AuthenticationHandlerExecutionResult;
 import org.apereo.cas.authentication.RememberMeUsernamePasswordCredential;
 import org.apereo.cas.authentication.UsernamePasswordCredential;
 import org.apereo.cas.authentication.exceptions.AccountDisabledException;
@@ -55,9 +53,9 @@ public class ShiroAuthenticationHandler extends AbstractUsernamePasswordAuthenti
     }
 
     @Override
-    protected HandlerResult authenticateUsernamePasswordInternal(final UsernamePasswordCredential transformedCredential,
-                                                                 final String originalPassword)
-            throws GeneralSecurityException, PreventedException {
+    protected AuthenticationHandlerExecutionResult authenticateUsernamePasswordInternal(final UsernamePasswordCredential transformedCredential,
+                                                                                        final String originalPassword)
+            throws GeneralSecurityException {
         try {
             final UsernamePasswordToken token = new UsernamePasswordToken(transformedCredential.getUsername(),
                     transformedCredential.getPassword());
@@ -118,7 +116,7 @@ public class ShiroAuthenticationHandler extends AbstractUsernamePasswordAuthenti
      * @param currentUser the current user
      * @return the handler result
      */
-    protected HandlerResult createAuthenticatedSubjectResult(final Credential credential, final Subject currentUser) {
+    protected AuthenticationHandlerExecutionResult createAuthenticatedSubjectResult(final Credential credential, final Subject currentUser) {
         final String username = currentUser.getPrincipal().toString();
         return createHandlerResult(credential, this.principalFactory.createPrincipal(username), null);
     }
@@ -152,7 +150,7 @@ public class ShiroAuthenticationHandler extends AbstractUsernamePasswordAuthenti
                 LOGGER.debug("Shiro configuration is not defined");
             }
         } catch (final Exception e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e.getMessage(), e);
         }
     }
 }

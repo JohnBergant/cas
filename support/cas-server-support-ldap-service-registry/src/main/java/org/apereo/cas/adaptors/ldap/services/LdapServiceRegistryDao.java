@@ -2,10 +2,10 @@ package org.apereo.cas.adaptors.ldap.services;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apereo.cas.configuration.model.support.ldap.serviceregistry.LdapServiceRegistryProperties;
-import org.apereo.cas.configuration.support.Beans;
 import org.apereo.cas.services.AbstractServiceRegistryDao;
 import org.apereo.cas.services.RegisteredService;
 import org.apereo.cas.support.events.service.CasRegisteredServiceLoadedEvent;
+import org.apereo.cas.util.CollectionUtils;
 import org.apereo.cas.util.LdapUtils;
 import org.ldaptive.ConnectionFactory;
 import org.ldaptive.LdapEntry;
@@ -16,9 +16,9 @@ import org.ldaptive.SearchResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Implementation of the ServiceRegistryDao interface which stores the services in a LDAP Directory.
@@ -48,22 +48,21 @@ public class LdapServiceRegistryDao extends AbstractServiceRegistryDao {
             this.ldapServiceMapper = ldapServiceMapper;
         }
 
-        this.searchFilter = '(' + this.ldapServiceMapper.getIdAttribute() + "={0})";
-        LOGGER.debug("Configured search filter to [{}]", this.searchFilter);
-        this.loadFilter = "(objectClass=" + this.ldapServiceMapper.getObjectClass() + ')';
-        LOGGER.debug("Configured load filter to [{}]", this.loadFilter);
+        this.loadFilter =ldapProperties.getLoadFilter();
+        this.searchFilter = ldapProperties.getSearchFilter();
+        LOGGER.debug("Configured search filter to [{}] and load filter to [{}]", this.searchFilter, this.loadFilter);
     }
 
     @Override
     public RegisteredService save(final RegisteredService rs) {
-        if (rs.getId() != RegisteredService.INITIAL_IDENTIFIER_VALUE) {
-            return update(rs);
-        }
-
         try {
+            if (rs.getId() != RegisteredService.INITIAL_IDENTIFIER_VALUE) {
+                return update(rs);
+            }
+
             final LdapEntry entry = this.ldapServiceMapper.mapFromRegisteredService(this.baseDn, rs);
             LdapUtils.executeAddOperation(this.connectionFactory, entry);
-        } catch (final LdapException e) {
+        } catch (final Exception e) {
             LOGGER.error(e.getMessage(), e);
         }
         return rs;
@@ -135,18 +134,19 @@ public class LdapServiceRegistryDao extends AbstractServiceRegistryDao {
 
     @Override
     public List<RegisteredService> load() {
-        final List<RegisteredService> list = new LinkedList<>();
+        final List<RegisteredService> list = new ArrayList<>();
 
         try {
             final Response<SearchResult> response = getSearchResultResponse();
             if (LdapUtils.containsResultEntry(response)) {
                 response.getResult().getEntries()
-                        .stream()
-                        .map(this.ldapServiceMapper::mapToRegisteredService)
-                        .forEach(s -> {
-                            publishEvent(new CasRegisteredServiceLoadedEvent(this, s));
-                            list.add(s);
-                        });
+                    .stream()
+                    .map(this.ldapServiceMapper::mapToRegisteredService)
+                    .filter(Objects::nonNull)
+                    .forEach(s -> {
+                        publishEvent(new CasRegisteredServiceLoadedEvent(this, s));
+                        list.add(s);
+                    });
             }
         } catch (final LdapException e) {
             LOGGER.error(e.getMessage(), e);
@@ -156,7 +156,7 @@ public class LdapServiceRegistryDao extends AbstractServiceRegistryDao {
 
     private Response<SearchResult> getSearchResultResponse() throws LdapException {
         return LdapUtils.executeSearchOperation(this.connectionFactory,
-                this.baseDn, Beans.newLdaptiveSearchFilter(this.loadFilter));
+            this.baseDn, LdapUtils.newLdaptiveSearchFilter(this.loadFilter));
     }
 
     @Override
@@ -185,9 +185,9 @@ public class LdapServiceRegistryDao extends AbstractServiceRegistryDao {
      * @throws LdapException the ldap exception
      */
     private Response<SearchResult> searchForServiceById(final Long id) throws LdapException {
-        final SearchFilter filter = Beans.newLdaptiveSearchFilter(this.searchFilter,
-                Beans.LDAP_SEARCH_FILTER_DEFAULT_PARAM_NAME,
-                Arrays.asList(id.toString()));
+        final SearchFilter filter = LdapUtils.newLdaptiveSearchFilter(this.searchFilter,
+            LdapUtils.LDAP_SEARCH_FILTER_DEFAULT_PARAM_NAME,
+            CollectionUtils.wrap(id.toString()));
         return LdapUtils.executeSearchOperation(this.connectionFactory, this.baseDn, filter);
     }
 

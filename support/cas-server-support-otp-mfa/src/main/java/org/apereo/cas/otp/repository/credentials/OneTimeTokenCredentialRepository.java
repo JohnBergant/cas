@@ -15,7 +15,7 @@ public interface OneTimeTokenCredentialRepository {
      * @param username the username
      * @return the secret
      */
-    String getSecret(String username);
+    OneTimeTokenAccount get(String username);
 
     /**
      * Save.
@@ -34,4 +34,10 @@ public interface OneTimeTokenCredentialRepository {
      * @return the one time token account
      */
     OneTimeTokenAccount create(String username);
+
+    /**
+     * Update an existing account.
+     * @param account the registration record
+     */
+    void update(OneTimeTokenAccount account);
 }

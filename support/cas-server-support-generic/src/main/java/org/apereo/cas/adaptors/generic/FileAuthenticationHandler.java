@@ -1,7 +1,7 @@
 package org.apereo.cas.adaptors.generic;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apereo.cas.authentication.HandlerResult;
+import org.apereo.cas.authentication.AuthenticationHandlerExecutionResult;
 import org.apereo.cas.authentication.PreventedException;
 import org.apereo.cas.authentication.UsernamePasswordCredential;
 import org.apereo.cas.authentication.handler.support.AbstractUsernamePasswordAuthenticationHandler;
@@ -15,6 +15,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.security.GeneralSecurityException;
+import java.util.stream.Stream;
 
 /**
  * Class designed to read data from a file in the format of USERNAME SEPARATOR
@@ -31,16 +32,23 @@ import java.security.GeneralSecurityException;
  */
 public class FileAuthenticationHandler extends AbstractUsernamePasswordAuthenticationHandler {
 
-    /** The default separator in the file. */
+    /**
+     * The default separator in the file.
+     */
     public static final String DEFAULT_SEPARATOR = "::";
 
-    /** The separator to use. */
+    /**
+     * The separator to use.
+     */
     private final String separator;
 
-    /** The filename to read the list of usernames from. */
+    /**
+     * The filename to read the list of usernames from.
+     */
     private final Resource fileName;
 
-    public FileAuthenticationHandler(final String name, final ServicesManager servicesManager, final PrincipalFactory principalFactory,
+    public FileAuthenticationHandler(final String name, final ServicesManager servicesManager,
+                                     final PrincipalFactory principalFactory,
                                      final Resource fileName, final String separator) {
         super(name, servicesManager, principalFactory, null);
         this.fileName = fileName;
@@ -48,9 +56,9 @@ public class FileAuthenticationHandler extends AbstractUsernamePasswordAuthentic
     }
 
     @Override
-    protected HandlerResult authenticateUsernamePasswordInternal(final UsernamePasswordCredential transformedCredential, 
-                                                                 final String originalPassword)
-            throws GeneralSecurityException, PreventedException {
+    protected AuthenticationHandlerExecutionResult authenticateUsernamePasswordInternal(final UsernamePasswordCredential transformedCredential,
+                                                                                        final String originalPassword)
+        throws GeneralSecurityException, PreventedException {
         try {
             if (this.fileName == null) {
                 throw new FileNotFoundException("Filename does not exist");
@@ -68,7 +76,7 @@ public class FileAuthenticationHandler extends AbstractUsernamePasswordAuthentic
         }
         throw new FailedLoginException();
     }
-    
+
     /**
      * Gets the password on record.
      *
@@ -77,8 +85,8 @@ public class FileAuthenticationHandler extends AbstractUsernamePasswordAuthentic
      * @throws IOException Signals that an I/O exception has occurred.
      */
     private String getPasswordOnRecord(final String username) throws IOException {
-        return Files.lines(fileName.getFile().toPath())
-                .map(line -> line.split(this.separator))
+        try (Stream<String> stream = Files.lines(fileName.getFile().toPath())) {
+            return stream.map(line -> line.split(this.separator))
                 .filter(lineFields -> {
                     final String userOnRecord = lineFields[0];
                     return username.equals(userOnRecord);
@@ -86,5 +94,6 @@ public class FileAuthenticationHandler extends AbstractUsernamePasswordAuthentic
                 .map(lineFields -> lineFields[1])
                 .findFirst()
                 .orElse(null);
+        }
     }
 }

@@ -13,7 +13,8 @@ is built on top of [Apache Fediz](http://cxf.apache.org/fediz.html) whose archit
 
 The WS-Trust OASIS standard specifies a runtime component called Security Token Service. A service consumer requests a security token from the STS which is sent to the service provider. Either the service provider can validate the security token on its own or sends a request to the STS for validation. This pattern is based on an indirect trust relationship between the service provider and the STS instead of a direct trust between the service provider and service consumer. As long as the service consumer is in the possession of a security token issued by a trusted STS, the service provider accepts this security token.
 
-A key benefit of the STS is the reduced complexity for applications. A web service consumer doesn't have to know how to create the various types of security tokens its service providers require. Instead, it sends a request to the STS containing the requirements of the client and the service provider and attaches the returned security token to the outgoing SOAP message to the service provider.
+A key benefit of the STS is the reduced complexity for applications. A web service consumer does not have to know how to create the various types of security 
+tokens its service providers require. Instead, it sends a request to the STS containing the requirements of the client and the service provider and attaches the returned security token to the outgoing SOAP message to the service provider.
 
 Support is enabled by including the following dependency in the WAR overlay:
 
@@ -34,7 +35,7 @@ need compile-time access to the components within.</p></div>
 
 | Endpoint               | Description
 |------------------------|----------------------------------------------------------------------------------------------------------------------
-| `/cas/ws/sts`          | Presents the list of available SOAP services and their WSDL configuration for each REALM defined in the configuration.
+| `/ws/sts`          | Presents the list of available SOAP services and their WSDL configuration for each REALM defined in the configuration.
 
 
 ### Security Tokens
@@ -68,8 +69,8 @@ Support is enabled by including the following dependency in the WAR overlay:
 
 | Endpoint                        | Description
 |---------------------------------|--------------------------------------------------------------------------------------------------------
-| `/cas/ws/idp/metadata`          | Displays the current federation metadata based on the configuration realm for the identity provider.
-| `/cas/ws/idp/federation`        | Endpoint to receive initial `GET` authentication requests from clients, typically identified as the `issuer`.
+| `/ws/idp/metadata`          | Displays the current federation metadata based on the configuration realm for the identity provider.
+| `/ws/idp/federation`        | Endpoint to receive initial `GET` authentication requests from clients, typically identified as the `issuer`.
 
 ## Realms
 

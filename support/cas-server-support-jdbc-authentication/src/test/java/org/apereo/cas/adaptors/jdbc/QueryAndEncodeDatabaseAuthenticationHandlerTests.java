@@ -1,11 +1,10 @@
 package org.apereo.cas.adaptors.jdbc;
 
-import com.google.common.base.Throwables;
 import org.apache.shiro.crypto.hash.DefaultHashService;
 import org.apache.shiro.crypto.hash.HashRequest;
 import org.apache.shiro.util.ByteSource;
+import org.apereo.cas.authentication.AuthenticationHandlerExecutionResult;
 import org.apereo.cas.authentication.CoreAuthenticationTestUtils;
-import org.apereo.cas.authentication.HandlerResult;
 import org.apereo.cas.authentication.PreventedException;
 import org.apereo.cas.authentication.UsernamePasswordCredential;
 import org.apereo.cas.authentication.exceptions.AccountDisabledException;
@@ -137,10 +136,10 @@ public class QueryAndEncodeDatabaseAuthenticationHandlerTests {
                 buildSql(), PASSWORD_FIELD_NAME, "salt", null, null, NUM_ITERATIONS_FIELD_NAME, 0, STATIC_SALT);
 
         final UsernamePasswordCredential c = CoreAuthenticationTestUtils.getCredentialsWithSameUsernameAndPassword("user1");
-        final HandlerResult r = q.authenticate(c);
+        final AuthenticationHandlerExecutionResult r = q.authenticate(c);
 
         assertNotNull(r);
-        assertEquals(r.getPrincipal().getId(), "user1");
+        assertEquals("user1", r.getPrincipal().getId());
     }
 
     @Test
@@ -184,11 +183,11 @@ public class QueryAndEncodeDatabaseAuthenticationHandlerTests {
         });
 
         q.setPrincipalNameTransformer(new PrefixSuffixPrincipalNameTransformer("user", null));
-        final HandlerResult r = q.authenticate(
+        final AuthenticationHandlerExecutionResult r = q.authenticate(
                 CoreAuthenticationTestUtils.getCredentialsWithDifferentUsernameAndPassword("1", "user"));
 
         assertNotNull(r);
-        assertEquals(r.getPrincipal().getId(), "user1");
+        assertEquals("user1", r.getPrincipal().getId());
     }
 
     private static String buildSql(final String where) {
@@ -209,7 +208,7 @@ public class QueryAndEncodeDatabaseAuthenticationHandlerTests {
 
             return hash.computeHash(new HashRequest.Builder().setSource(psw).setSalt(salt).setIterations(iter).build()).toHex();
         } catch (final Exception e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e.getMessage(), e);
         }
     }
 

@@ -1,7 +1,14 @@
 package org.apereo.cas.services.publisher;
 
+import org.apereo.cas.DistributedCacheManager;
+import org.apereo.cas.DistributedCacheObject;
+import org.apereo.cas.StringBean;
 import org.apereo.cas.services.RegisteredService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEvent;
+
+import java.util.Date;
 
 /**
  * This is {@link CasRegisteredServiceHazelcastStreamPublisher}.
@@ -9,9 +16,34 @@ import org.springframework.context.ApplicationEvent;
  * @author Misagh Moayyed
  * @since 5.2.0
  */
-public class CasRegisteredServiceHazelcastStreamPublisher implements CasRegisteredServiceStreamPublisher {
+public class CasRegisteredServiceHazelcastStreamPublisher extends BaseCasRegisteredServiceStreamPublisher {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CasRegisteredServiceHazelcastStreamPublisher.class);
+
+    private final DistributedCacheManager<RegisteredService, DistributedCacheObject<RegisteredService>> distributedCacheManager;
+
+    public CasRegisteredServiceHazelcastStreamPublisher(final DistributedCacheManager instance,
+                                                        final StringBean publisherId) {
+        super(publisherId);
+        this.distributedCacheManager = instance;
+    }
     @Override
-    public void publish(final RegisteredService service, final ApplicationEvent event) {
-             
+    protected void handleCasRegisteredServiceDeletedEvent(final RegisteredService service, final ApplicationEvent event) {
+        final DistributedCacheObject<RegisteredService> item = getCacheObject(service, event);
+        LOGGER.debug("Removing service [{}] from cache [{}] @ [{}]", service, this.distributedCacheManager.getName(), item.getTimestamp());
+        this.distributedCacheManager.update(service, item);
+    }
+
+    @Override
+    protected void handleCasRegisteredServiceUpdateEvents(final RegisteredService service, final ApplicationEvent event) {
+        final DistributedCacheObject<RegisteredService> item = getCacheObject(service, event);
+        LOGGER.debug("Storing item [{}] to cache [{}] @ [{}]", item, this.distributedCacheManager.getName(), item.getTimestamp());
+        this.distributedCacheManager.set(service, item);
+    }
+
+    private DistributedCacheObject<RegisteredService> getCacheObject(final RegisteredService service, final ApplicationEvent event) {
+        final long time = new Date().getTime();
+        final DistributedCacheObject<RegisteredService> item = new DistributedCacheObject<>(time, service);
+        item.getProperties().put("event", event);
+        return item;
     }
 }

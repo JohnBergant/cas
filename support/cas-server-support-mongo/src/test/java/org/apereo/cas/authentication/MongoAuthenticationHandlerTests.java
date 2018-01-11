@@ -8,8 +8,12 @@ import org.apereo.cas.config.CasCoreAuthenticationPolicyConfiguration;
 import org.apereo.cas.config.CasCoreAuthenticationPrincipalConfiguration;
 import org.apereo.cas.config.CasCoreAuthenticationSupportConfiguration;
 import org.apereo.cas.config.CasCoreHttpConfiguration;
+import org.apereo.cas.config.CasCoreServicesAuthenticationConfiguration;
 import org.apereo.cas.config.CasCoreServicesConfiguration;
+import org.apereo.cas.config.CasCoreTicketCatalogConfiguration;
+import org.apereo.cas.config.CasCoreTicketsConfiguration;
 import org.apereo.cas.config.CasCoreUtilConfiguration;
+import org.apereo.cas.config.CasCoreWebConfiguration;
 import org.apereo.cas.config.CasPersonDirectoryConfiguration;
 import org.apereo.cas.config.support.CasWebApplicationServiceFactoryConfiguration;
 import org.junit.Before;
@@ -38,7 +42,8 @@ import static org.junit.Assert.*;
 @RunWith(SpringRunner.class)
 @SpringBootTest(
         classes = {CasMongoAuthenticationConfiguration.class,
-                CasCoreAuthenticationConfiguration.class,
+                CasCoreAuthenticationConfiguration.class, 
+                CasCoreServicesAuthenticationConfiguration.class,
                 CasCoreUtilConfiguration.class,
                 CasCoreAuthenticationPrincipalConfiguration.class,
                 CasCoreAuthenticationPolicyConfiguration.class,
@@ -46,9 +51,13 @@ import static org.junit.Assert.*;
                 CasCoreAuthenticationSupportConfiguration.class,
                 CasCoreAuthenticationHandlersConfiguration.class,
                 CasCoreHttpConfiguration.class,
+                CasCoreTicketCatalogConfiguration.class,
+                CasCoreTicketsConfiguration.class,
                 CasCoreServicesConfiguration.class,
                 CasWebApplicationServiceFactoryConfiguration.class,
                 CasPersonDirectoryConfiguration.class,
+                CasCoreWebConfiguration.class,
+                CasWebApplicationServiceFactoryConfiguration.class,
                 RefreshAutoConfiguration.class})
 @EnableScheduling
 @TestPropertySource(locations={"classpath:/mongo.properties"})
@@ -65,9 +74,9 @@ public class MongoAuthenticationHandlerTests {
     }
     @Test
     public void verifyAuthentication() throws Exception {
-        final HandlerResult result = this.authenticationHandler.authenticate(CoreAuthenticationTestUtils
+        final AuthenticationHandlerExecutionResult result = this.authenticationHandler.authenticate(CoreAuthenticationTestUtils
                 .getCredentialsWithDifferentUsernameAndPassword("u1", "p1"));
-        assertEquals(result.getPrincipal().getId(), "u1");
+        assertEquals("u1", result.getPrincipal().getId());
         assertTrue(result.getPrincipal().getAttributes().containsKey("loc"));
         assertTrue(result.getPrincipal().getAttributes().containsKey("state"));
     }

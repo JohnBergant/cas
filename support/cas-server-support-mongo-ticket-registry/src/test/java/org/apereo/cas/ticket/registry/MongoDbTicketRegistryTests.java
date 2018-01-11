@@ -12,13 +12,16 @@ import org.apereo.cas.config.CasCoreAuthenticationServiceSelectionStrategyConfig
 import org.apereo.cas.config.CasCoreAuthenticationSupportConfiguration;
 import org.apereo.cas.config.CasCoreConfiguration;
 import org.apereo.cas.config.CasCoreHttpConfiguration;
+import org.apereo.cas.config.CasCoreServicesAuthenticationConfiguration;
 import org.apereo.cas.config.CasCoreServicesConfiguration;
 import org.apereo.cas.config.CasCoreTicketsConfiguration;
 import org.apereo.cas.config.CasCoreUtilConfiguration;
+import org.apereo.cas.config.CasCoreWebConfiguration;
 import org.apereo.cas.config.CasPersonDirectoryConfiguration;
 import org.apereo.cas.config.CasCoreTicketCatalogConfiguration;
 import org.apereo.cas.config.MongoDbTicketRegistryConfiguration;
 import org.apereo.cas.config.MongoDbTicketRegistryTicketCatalogConfiguration;
+import org.apereo.cas.config.support.CasWebApplicationServiceFactoryConfiguration;
 import org.apereo.cas.logout.config.CasCoreLogoutConfiguration;
 import org.junit.Before;
 import org.junit.runner.RunWith;
@@ -42,7 +45,8 @@ import org.springframework.test.context.TestPropertySource;
 @SpringBootTest(classes = {RefreshAutoConfiguration.class,
         CasCoreUtilConfiguration.class,
         AopAutoConfiguration.class,
-        CasCoreAuthenticationConfiguration.class,
+        CasCoreAuthenticationConfiguration.class, 
+        CasCoreServicesAuthenticationConfiguration.class,
         CasCoreAuthenticationPrincipalConfiguration.class,
         CasCoreAuthenticationPolicyConfiguration.class,
         CasCoreAuthenticationMetadataConfiguration.class,
@@ -57,7 +61,9 @@ import org.springframework.test.context.TestPropertySource;
         CasCoreTicketsConfiguration.class,
         CasCoreTicketCatalogConfiguration.class,
         MongoDbTicketRegistryTicketCatalogConfiguration.class,
-        MongoDbTicketRegistryConfiguration.class})
+        MongoDbTicketRegistryConfiguration.class,
+        CasCoreWebConfiguration.class,
+        CasWebApplicationServiceFactoryConfiguration.class})
 @EnableScheduling
 @TestPropertySource(locations = {"classpath:/mongoregistry.properties"})
 @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
@@ -72,17 +78,18 @@ public class MongoDbTicketRegistryTests extends AbstractTicketRegistryTests {
     }
 
     @Parameterized.Parameters
-    public static Collection<Object> getTestParameters() throws Exception {
+    public static Collection<Object> getTestParameters() {
         return Arrays.asList(true, false);
     }
 
     @Before
     public void before() {
-        ticketRegistry.getTickets().forEach(t -> this.ticketRegistry.deleteTicket(t.getId()));
+        ticketRegistry.deleteAll();
     }
 
     @Override
-    public TicketRegistry getNewTicketRegistry() throws Exception {
+    public TicketRegistry getNewTicketRegistry() {
         return this.ticketRegistry;
     }
+    
 }

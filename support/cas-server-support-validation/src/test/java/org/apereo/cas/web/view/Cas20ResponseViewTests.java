@@ -2,8 +2,14 @@ package org.apereo.cas.web.view;
 
 import org.apereo.cas.CasProtocolConstants;
 import org.apereo.cas.CasViewConstants;
+import org.apereo.cas.authentication.DefaultAuthenticationAttributeReleasePolicy;
+import org.apereo.cas.authentication.DefaultAuthenticationContextValidator;
+import org.apereo.cas.authentication.DefaultAuthenticationServiceSelectionPlan;
+import org.apereo.cas.authentication.DefaultMultifactorTriggerSelectionStrategy;
+import org.apereo.cas.validation.DefaultServiceTicketValidationAuthorizersExecutionPlan;
+import org.apereo.cas.web.AbstractServiceValidateController;
 import org.apereo.cas.web.AbstractServiceValidateControllerTests;
-import org.junit.Before;
+import org.apereo.cas.web.ServiceValidateController;
 import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -20,7 +26,6 @@ import javax.servlet.http.HttpServletResponse;
 import java.util.Map;
 
 import static org.junit.Assert.*;
-
 
 /**
  * Unit tests for {@link Cas20ResponseView}.
@@ -42,11 +47,20 @@ public class Cas20ResponseViewTests extends AbstractServiceValidateControllerTes
     @Qualifier("cas2ServiceFailureView")
     private View cas2ServiceFailureView;
 
-    @Before
-    public void setUp() {
-        this.serviceValidateController.setFailureView(cas2ServiceFailureView);
-        this.serviceValidateController.setSuccessView(cas2SuccessView);
-        this.serviceValidateController.setJsonView(cas3ServiceJsonView);
+    @Override
+    public AbstractServiceValidateController getServiceValidateControllerInstance() throws Exception {
+        return new ServiceValidateController(
+            getValidationSpecification(),
+            getAuthenticationSystemSupport(), getServicesManager(),
+            getCentralAuthenticationService(),
+            getProxyHandler(),
+            getArgumentExtractor(),
+            new DefaultMultifactorTriggerSelectionStrategy("", ""),
+            new DefaultAuthenticationContextValidator("", "OPEN", "test"),
+            cas3ServiceJsonView, cas2SuccessView,
+            cas2ServiceFailureView, "authenticationContext",
+            new DefaultServiceTicketValidationAuthorizersExecutionPlan()
+        );
     }
 
     @Test
@@ -55,9 +69,7 @@ public class Cas20ResponseViewTests extends AbstractServiceValidateControllerTes
         final MockHttpServletRequest req = new MockHttpServletRequest(new MockServletContext());
         req.setAttribute(RequestContext.WEB_APPLICATION_CONTEXT_ATTRIBUTE, new GenericWebApplicationContext(req.getServletContext()));
 
-
         final MockHttpServletResponse resp = new MockHttpServletResponse();
-
         final View delegatedView = new View() {
             @Override
             public String getContentType() {
@@ -65,12 +77,13 @@ public class Cas20ResponseViewTests extends AbstractServiceValidateControllerTes
             }
 
             @Override
-            public void render(final Map<String, ?> map, final HttpServletRequest request, final HttpServletResponse response) throws Exception {
+            public void render(final Map<String, ?> map, final HttpServletRequest request, final HttpServletResponse response) {
                 map.forEach(request::setAttribute);
             }
         };
         final Cas20ResponseView view = new Cas20ResponseView(true, null,
-                null, "attribute", delegatedView);
+            null, "attribute", delegatedView, new DefaultAuthenticationAttributeReleasePolicy(),
+            new DefaultAuthenticationServiceSelectionPlan());
         view.render(modelAndView.getModel(), req, resp);
 
         assertNotNull(req.getAttribute(CasViewConstants.MODEL_ATTRIBUTE_NAME_CHAINED_AUTHENTICATIONS));

@@ -1,25 +1,22 @@
 package org.apereo.cas.config;
 
-import com.google.common.base.Throwables;
-import net.spy.memcached.ConnectionFactoryBuilder;
-import net.spy.memcached.DefaultHashAlgorithm;
-import net.spy.memcached.FailureMode;
-import net.spy.memcached.MemcachedClientIF;
-import net.spy.memcached.spring.MemcachedClientFactoryBean;
+import net.spy.memcached.transcoders.Transcoder;
+import org.apereo.cas.CipherExecutor;
+import org.apereo.cas.ComponentSerializationPlan;
 import org.apereo.cas.configuration.CasConfigurationProperties;
-import org.apereo.cas.configuration.support.Beans;
-import org.apereo.cas.logout.LogoutManager;
-import org.apereo.cas.ticket.registry.MemCacheTicketRegistry;
+import org.apereo.cas.configuration.model.support.memcached.MemcachedTicketRegistryProperties;
+import org.apereo.cas.memcached.MemcachedPooledClientConnectionFactory;
+import org.apereo.cas.memcached.MemcachedUtils;
+import org.apereo.cas.ticket.registry.MemcachedTicketRegistry;
 import org.apereo.cas.ticket.registry.NoOpTicketRegistryCleaner;
 import org.apereo.cas.ticket.registry.TicketRegistry;
 import org.apereo.cas.ticket.registry.TicketRegistryCleaner;
-import org.apereo.cas.ticket.registry.support.kryo.KryoTranscoder;
+import org.apereo.cas.util.CoreTicketUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Lazy;
 
 /**
  * This is {@link MemcachedTicketRegistryConfiguration}.
@@ -35,40 +32,27 @@ public class MemcachedTicketRegistryConfiguration {
     private CasConfigurationProperties casProperties;
 
     @Autowired
-    @Qualifier("logoutManager")
-    private LogoutManager logoutManager;
+    @Qualifier("componentSerializationPlan")
+    private ComponentSerializationPlan componentSerializationPlan;
 
-    @Lazy
     @Bean
-    public MemcachedClientFactoryBean memcachedClient() {
-        try {
-            final MemcachedClientFactoryBean bean = new MemcachedClientFactoryBean();
-            bean.setServers(casProperties.getTicket().getRegistry().getMemcached().getServers());
-            bean.setLocatorType(ConnectionFactoryBuilder.Locator.valueOf(casProperties.getTicket().getRegistry().getMemcached().getLocatorType()));
-            bean.setTranscoder(kryoTranscoder());
-            bean.setFailureMode(FailureMode.valueOf(casProperties.getTicket().getRegistry().getMemcached().getFailureMode()));
-            bean.setHashAlg(DefaultHashAlgorithm.valueOf(casProperties.getTicket().getRegistry().getMemcached().getHashAlgorithm()));
-            return bean;
-        } catch (final Exception e) {
-            throw Throwables.propagate(e);
-        }
+    public Transcoder memcachedTicketRegistryTranscoder() {
+        final MemcachedTicketRegistryProperties memcached = casProperties.getTicket().getRegistry().getMemcached();
+        return MemcachedUtils.newTranscoder(memcached, componentSerializationPlan.getRegisteredClasses());
     }
 
     @Bean
-    public KryoTranscoder kryoTranscoder() {
-        return new KryoTranscoder();
-    }
-
-    @Autowired
-    @Bean
-    public TicketRegistry ticketRegistry(@Qualifier("memcachedClient") final MemcachedClientIF memcachedClientIF) {
-        final MemCacheTicketRegistry registry = new MemCacheTicketRegistry(memcachedClientIF);
-        registry.setCipherExecutor(Beans.newTicketRegistryCipherExecutor(casProperties.getTicket().getRegistry().getMemcached().getCrypto()));
+    public TicketRegistry ticketRegistry() {
+        final MemcachedTicketRegistryProperties memcached = casProperties.getTicket().getRegistry().getMemcached();
+        final MemcachedPooledClientConnectionFactory factory = new MemcachedPooledClientConnectionFactory(memcached, memcachedTicketRegistryTranscoder());
+        final MemcachedTicketRegistry registry = new MemcachedTicketRegistry(factory.getObjectPool());
+        final CipherExecutor cipherExecutor = CoreTicketUtils.newTicketRegistryCipherExecutor(memcached.getCrypto(), "memcached");
+        registry.setCipherExecutor(cipherExecutor);
         return registry;
     }
 
     @Bean
     public TicketRegistryCleaner ticketRegistryCleaner() {
-        return new NoOpTicketRegistryCleaner();
+        return NoOpTicketRegistryCleaner.getInstance();
     }
 }

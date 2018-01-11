@@ -3,9 +3,10 @@ package org.apereo.cas.web.flow.config;
 import org.apereo.cas.authentication.adaptive.AdaptiveAuthenticationPolicy;
 import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.configuration.model.support.spnego.SpnegoProperties;
-import org.apereo.cas.configuration.support.Beans;
+
+import org.apereo.cas.util.LdapUtils;
 import org.apereo.cas.web.flow.SpnegoCredentialsAction;
-import org.apereo.cas.web.flow.SpnegoNegociateCredentialsAction;
+import org.apereo.cas.web.flow.SpnegoNegotiateCredentialsAction;
 import org.apereo.cas.web.flow.client.BaseSpnegoKnownClientSystemsFilterAction;
 import org.apereo.cas.web.flow.client.HostNameSpnegoKnownClientSystemsFilterAction;
 import org.apereo.cas.web.flow.client.LdapSpnegoKnownClientSystemsFilterAction;
@@ -69,7 +70,7 @@ public class SpnegoWebflowActionsConfiguration {
     public Action negociateSpnego() {
         final SpnegoProperties spnegoProperties = casProperties.getAuthn().getSpnego();
         final List<String> supportedBrowsers = Stream.of(spnegoProperties.getSupportedBrowsers().split(",")).collect(Collectors.toList());
-        return new SpnegoNegociateCredentialsAction(supportedBrowsers, spnegoProperties.isNtlm(), spnegoProperties.isMixedModeAuthentication());
+        return new SpnegoNegotiateCredentialsAction(supportedBrowsers, spnegoProperties.isNtlm(), spnegoProperties.isMixedModeAuthentication());
     }
 
     @Bean
@@ -95,11 +96,11 @@ public class SpnegoWebflowActionsConfiguration {
     @RefreshScope
     public Action ldapSpnegoClientAction() {
         final SpnegoProperties spnegoProperties = casProperties.getAuthn().getSpnego();
-        final ConnectionFactory connectionFactory = Beans.newLdaptivePooledConnectionFactory(spnegoProperties.getLdap());
-        final SearchFilter filter = Beans.newLdaptiveSearchFilter(spnegoProperties.getLdap().getSearchFilter(),
+        final ConnectionFactory connectionFactory = LdapUtils.newLdaptivePooledConnectionFactory(spnegoProperties.getLdap());
+        final SearchFilter filter = LdapUtils.newLdaptiveSearchFilter(spnegoProperties.getLdap().getSearchFilter(),
                 "host", new ArrayList<>(0));
 
-        final SearchRequest searchRequest = Beans.newLdaptiveSearchRequest(spnegoProperties.getLdap().getBaseDn(), filter);
+        final SearchRequest searchRequest = LdapUtils.newLdaptiveSearchRequest(spnegoProperties.getLdap().getBaseDn(), filter);
         return new LdapSpnegoKnownClientSystemsFilterAction(spnegoProperties.getIpsToCheckPattern(), 
                 spnegoProperties.getAlternativeRemoteHostAttribute(),
                 spnegoProperties.getDnsTimeout(), 

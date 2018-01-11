@@ -1,27 +1,40 @@
 package org.apereo.cas.web.flow.config;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apereo.cas.CentralAuthenticationService;
 import org.apereo.cas.CipherExecutor;
 import org.apereo.cas.authentication.AuthenticationContextValidator;
 import org.apereo.cas.authentication.AuthenticationServiceSelectionPlan;
 import org.apereo.cas.authentication.AuthenticationSystemSupport;
+import org.apereo.cas.authentication.PrincipalException;
+import org.apereo.cas.authentication.adaptive.UnauthorizedAuthenticationException;
 import org.apereo.cas.authentication.adaptive.geo.GeoLocationService;
+import org.apereo.cas.authentication.exceptions.AccountDisabledException;
+import org.apereo.cas.authentication.exceptions.AccountPasswordMustChangeException;
+import org.apereo.cas.authentication.exceptions.InvalidLoginLocationException;
+import org.apereo.cas.authentication.exceptions.InvalidLoginTimeException;
 import org.apereo.cas.authentication.principal.ResponseBuilderLocator;
 import org.apereo.cas.configuration.CasConfigurationProperties;
+import org.apereo.cas.configuration.model.core.util.EncryptionRandomizedSigningJwtCryptographyProperties;
 import org.apereo.cas.configuration.model.webapp.WebflowProperties;
 import org.apereo.cas.services.MultifactorAuthenticationProviderSelector;
 import org.apereo.cas.services.ServicesManager;
+import org.apereo.cas.services.UnauthorizedServiceForPrincipalException;
+import org.apereo.cas.ticket.UnsatisfiedAuthenticationPolicyException;
 import org.apereo.cas.ticket.registry.TicketRegistrySupport;
+import org.apereo.cas.util.cipher.NoOpCipherExecutor;
 import org.apereo.cas.util.cipher.WebflowConversationStateCipherExecutor;
-import org.apereo.cas.web.flow.CheckWebAuthenticationRequestAction;
-import org.apereo.cas.web.flow.ClearWebflowCredentialAction;
-import org.apereo.cas.web.flow.InjectResponseHeadersAction;
-import org.apereo.cas.web.flow.RedirectToServiceAction;
+import org.apereo.cas.web.flow.DefaultSingleSignOnParticipationStrategy;
+import org.apereo.cas.web.flow.SingleSignOnParticipationStrategy;
+import org.apereo.cas.web.flow.actions.AuthenticationExceptionHandlerAction;
+import org.apereo.cas.web.flow.actions.CheckWebAuthenticationRequestAction;
+import org.apereo.cas.web.flow.actions.ClearWebflowCredentialAction;
+import org.apereo.cas.web.flow.actions.InjectResponseHeadersAction;
+import org.apereo.cas.web.flow.actions.RedirectToServiceAction;
 import org.apereo.cas.web.flow.authentication.GroovyScriptMultifactorAuthenticationProviderSelector;
 import org.apereo.cas.web.flow.authentication.RankedMultifactorAuthenticationProviderSelector;
 import org.apereo.cas.web.flow.resolver.CasDelegatingWebflowEventResolver;
 import org.apereo.cas.web.flow.resolver.CasWebflowEventResolver;
-import org.apereo.cas.web.flow.resolver.impl.AdaptiveMultifactorAuthenticationPolicyEventResolver;
 import org.apereo.cas.web.flow.resolver.impl.InitialAuthenticationAttemptWebflowEventResolver;
 import org.apereo.cas.web.flow.resolver.impl.RankedAuthenticationProviderWebflowEventResolver;
 import org.apereo.cas.web.flow.resolver.impl.SelectiveAuthenticationProviderWebflowEventEventResolver;
@@ -33,8 +46,14 @@ import org.apereo.cas.web.flow.resolver.impl.mfa.PredicatedPrincipalAttributeMul
 import org.apereo.cas.web.flow.resolver.impl.mfa.PrincipalAttributeMultifactorAuthenticationPolicyEventResolver;
 import org.apereo.cas.web.flow.resolver.impl.mfa.RegisteredServiceMultifactorAuthenticationPolicyEventResolver;
 import org.apereo.cas.web.flow.resolver.impl.mfa.RegisteredServicePrincipalAttributeMultifactorAuthenticationPolicyEventResolver;
-import org.apereo.cas.web.flow.resolver.impl.mfa.RequestParameterMultifactorAuthenticationPolicyEventResolver;
+import org.apereo.cas.web.flow.resolver.impl.mfa.request.RequestHeaderMultifactorAuthenticationPolicyEventResolver;
+import org.apereo.cas.web.flow.resolver.impl.mfa.request.RequestParameterMultifactorAuthenticationPolicyEventResolver;
 import org.apereo.cas.web.flow.resolver.impl.mfa.RestEndpointMultifactorAuthenticationPolicyEventResolver;
+import org.apereo.cas.web.flow.resolver.impl.mfa.adaptive.AdaptiveMultifactorAuthenticationPolicyEventResolver;
+import org.apereo.cas.web.flow.resolver.impl.mfa.adaptive.TimedMultifactorAuthenticationPolicyEventResolver;
+import org.apereo.cas.web.flow.resolver.impl.mfa.request.RequestSessionAttributeMultifactorAuthenticationPolicyEventResolver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -46,6 +65,9 @@ import org.springframework.core.io.Resource;
 import org.springframework.web.util.CookieGenerator;
 import org.springframework.webflow.execution.Action;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 /**
  * This is {@link CasCoreWebflowConfiguration}.
  *
@@ -55,6 +77,7 @@ import org.springframework.webflow.execution.Action;
 @Configuration("casCoreWebflowConfiguration")
 @EnableConfigurationProperties(CasConfigurationProperties.class)
 public class CasCoreWebflowConfiguration {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CasCoreWebflowConfiguration.class);
 
     @Autowired(required = false)
     @Qualifier("geoLocationService")
@@ -107,6 +130,16 @@ public class CasCoreWebflowConfiguration {
                 centralAuthenticationService, servicesManager,
                 ticketRegistrySupport, warnCookieGenerator, authenticationRequestServiceSelectionStrategies,
                 selector, casProperties, geoLocationService);
+    }
+
+    @ConditionalOnMissingBean(name = "timedAuthenticationPolicyWebflowEventResolver")
+    @Bean
+    @RefreshScope
+    public CasWebflowEventResolver timedAuthenticationPolicyWebflowEventResolver() {
+        return new TimedMultifactorAuthenticationPolicyEventResolver(authenticationSystemSupport,
+                centralAuthenticationService, servicesManager,
+                ticketRegistrySupport, warnCookieGenerator, authenticationRequestServiceSelectionStrategies,
+                selector, casProperties);
     }
 
     @ConditionalOnMissingBean(name = "principalAttributeAuthenticationPolicyWebflowEventResolver")
@@ -162,8 +195,11 @@ public class CasCoreWebflowConfiguration {
                 warnCookieGenerator, authenticationRequestServiceSelectionStrategies,
                 selector);
         r.addDelegate(adaptiveAuthenticationPolicyWebflowEventResolver());
+        r.addDelegate(timedAuthenticationPolicyWebflowEventResolver());
         r.addDelegate(globalAuthenticationPolicyWebflowEventResolver());
         r.addDelegate(requestParameterAuthenticationPolicyWebflowEventResolver());
+        r.addDelegate(requestHeaderAuthenticationPolicyWebflowEventResolver());
+        r.addDelegate(requestSessionAttributeAuthenticationPolicyWebflowEventResolver());
         r.addDelegate(restEndpointAuthenticationPolicyWebflowEventResolver());
         r.addDelegate(groovyScriptAuthenticationPolicyWebflowEventResolver());
         r.addDelegate(registeredServicePrincipalAttributeAuthenticationPolicyWebflowEventResolver());
@@ -234,6 +270,26 @@ public class CasCoreWebflowConfiguration {
                 authenticationRequestServiceSelectionStrategies, selector, casProperties);
     }
 
+    @ConditionalOnMissingBean(name = "requestHeaderAuthenticationPolicyWebflowEventResolver")
+    @Bean
+    @RefreshScope
+    public CasWebflowEventResolver requestHeaderAuthenticationPolicyWebflowEventResolver() {
+        return new RequestHeaderMultifactorAuthenticationPolicyEventResolver(authenticationSystemSupport,
+            centralAuthenticationService, servicesManager,
+            ticketRegistrySupport, warnCookieGenerator,
+            authenticationRequestServiceSelectionStrategies, selector, casProperties);
+    }
+
+    @ConditionalOnMissingBean(name = "requestSessionAttributeAuthenticationPolicyWebflowEventResolver")
+    @Bean
+    @RefreshScope
+    public CasWebflowEventResolver requestSessionAttributeAuthenticationPolicyWebflowEventResolver() {
+        return new RequestSessionAttributeMultifactorAuthenticationPolicyEventResolver(authenticationSystemSupport,
+            centralAuthenticationService, servicesManager,
+            ticketRegistrySupport, warnCookieGenerator,
+            authenticationRequestServiceSelectionStrategies, selector, casProperties);
+    }
+    
     @ConditionalOnMissingBean(name = "registeredServicePrincipalAttributeAuthenticationPolicyWebflowEventResolver")
     @Bean
     @RefreshScope
@@ -267,14 +323,28 @@ public class CasCoreWebflowConfiguration {
 
     @Bean
     @RefreshScope
-    public CipherExecutor<byte[], byte[]> webflowCipherExecutor() {
+    public CipherExecutor webflowCipherExecutor() {
         final WebflowProperties webflow = casProperties.getWebflow();
-        return new WebflowConversationStateCipherExecutor(
-                webflow.getCrypto().getEncryption().getKey(),
-                webflow.getCrypto().getSigning().getKey(),
-                webflow.getCrypto().getAlg(),
-                webflow.getCrypto().getSigning().getKeySize(),
-                webflow.getCrypto().getEncryption().getKeySize());
+        final EncryptionRandomizedSigningJwtCryptographyProperties crypto = webflow.getCrypto();
+
+        boolean enabled = crypto.isEnabled();
+        if (!enabled && (StringUtils.isNotBlank(crypto.getEncryption().getKey())) && StringUtils.isNotBlank(crypto.getSigning().getKey())) {
+            LOGGER.warn("Webflow encryption/signing is not enabled explicitly in the configuration, yet signing/encryption keys "
+                    + "are defined for operations. CAS will proceed to enable the webflow encryption/signing functionality.");
+            enabled = true;
+        }
+        if (enabled) {
+            return new WebflowConversationStateCipherExecutor(
+                    crypto.getEncryption().getKey(),
+                    crypto.getSigning().getKey(),
+                    crypto.getAlg(),
+                    crypto.getSigning().getKeySize(),
+                    crypto.getEncryption().getKeySize());
+        }
+        LOGGER.warn("Webflow encryption/signing is turned off. This "
+                + "MAY NOT be safe in a production environment. Consider using other choices to handle encryption, "
+                + "signing and verification of webflow state.");
+        return NoOpCipherExecutor.getInstance();
     }
 
     @Bean
@@ -297,10 +367,55 @@ public class CasCoreWebflowConfiguration {
     public Action redirectToServiceAction() {
         return new RedirectToServiceAction(responseBuilderLocator);
     }
+
     @Bean
     @ConditionalOnMissingBean(name = "injectResponseHeadersAction")
     @RefreshScope
     public Action injectResponseHeadersAction() {
         return new InjectResponseHeadersAction(responseBuilderLocator);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "singleSignOnParticipationStrategy")
+    @RefreshScope
+    public SingleSignOnParticipationStrategy singleSignOnParticipationStrategy() {
+        return new DefaultSingleSignOnParticipationStrategy(servicesManager, casProperties.getSso().isRenewedAuthn());
+    }
+
+    @ConditionalOnMissingBean(name = "authenticationExceptionHandler")
+    @Bean
+    public Action authenticationExceptionHandler() {
+        return new AuthenticationExceptionHandlerAction(handledAuthenticationExceptions());
+    }
+
+    @RefreshScope
+    @Bean
+    public Set<Class<? extends Throwable>> handledAuthenticationExceptions() {
+        /*
+         * Order is important here; We want the account policy exceptions to be handled
+         * first before moving onto more generic errors. In the event that multiple handlers
+         * are defined, where one fails due to account policy restriction and one fails
+         * due to a bad password, we want the error associated with the account policy
+         * to be processed first, rather than presenting a more generic error associated
+         */
+        final Set<Class<? extends Throwable>> errors = new LinkedHashSet<>();
+        errors.add(javax.security.auth.login.AccountLockedException.class);
+        errors.add(javax.security.auth.login.CredentialExpiredException.class);
+        errors.add(javax.security.auth.login.AccountExpiredException.class);
+        errors.add(AccountDisabledException.class);
+        errors.add(InvalidLoginLocationException.class);
+        errors.add(AccountPasswordMustChangeException.class);
+        errors.add(InvalidLoginTimeException.class);
+
+        errors.add(javax.security.auth.login.AccountNotFoundException.class);
+        errors.add(javax.security.auth.login.FailedLoginException.class);
+        errors.add(UnauthorizedServiceForPrincipalException.class);
+        errors.add(PrincipalException.class);
+        errors.add(UnsatisfiedAuthenticationPolicyException.class);
+        errors.add(UnauthorizedAuthenticationException.class);
+
+        errors.addAll(casProperties.getAuthn().getExceptions().getExceptions());
+
+        return errors;
     }
 }

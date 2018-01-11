@@ -1,10 +1,13 @@
 package org.apereo.cas.services;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.apereo.cas.authentication.principal.Service;
 
 import java.io.Serializable;
 import java.net.URL;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -19,9 +22,34 @@ import java.util.Set;
 public interface RegisteredService extends Cloneable, Serializable, Comparable<RegisteredService> {
 
     /**
+     * The logout type.
+     */
+    enum LogoutType {
+        /**
+         * For no SLO.
+         */
+        NONE,
+        /**
+         * For back channel SLO.
+         */
+        BACK_CHANNEL,
+        /**
+         * For front channel SLO.
+         */
+        FRONT_CHANNEL
+    }
+
+    /**
      * Initial ID value of newly created (but not persisted) registered service.
      */
-    long INITIAL_IDENTIFIER_VALUE = -Long.MAX_VALUE;
+    long INITIAL_IDENTIFIER_VALUE = -1;
+
+    /**
+     * Get the expiration policy rules for this service.
+     *
+     * @return the proxy policy
+     */
+    RegisteredServiceExpirationPolicy getExpirationPolicy();
 
     /**
      * Get the proxy policy rules for this service.
@@ -68,11 +96,19 @@ public interface RegisteredService extends Cloneable, Serializable, Comparable<R
     String getDescription();
 
     /**
+     * Response determines how CAS should contact the matching service
+     * typically with a ticket id. By default, the strategy is a 302 redirect.
+     *
+     * @return the response type
+     * @see org.apereo.cas.authentication.principal.Response.ResponseType
+     */
+    String getResponseType();
+
+    /**
      * Gets the relative evaluation order of this service when determining
      * matches.
      *
-     * @return Evaluation order relative to other registered services. Services with lower values will
-     * be evaluated for a match before others.
+     * @return Evaluation order relative to other registered services. Services with lower values will be evaluated for a match before others.
      */
     int getEvaluationOrder();
 
@@ -135,9 +171,8 @@ public interface RegisteredService extends Cloneable, Serializable, Comparable<R
      * Clone this service.
      *
      * @return the registered service
-     * @throws CloneNotSupportedException the clone not supported exception
      */
-    RegisteredService clone() throws CloneNotSupportedException;
+    RegisteredService clone();
 
     /**
      * Returns the logout type of the service.
@@ -163,18 +198,20 @@ public interface RegisteredService extends Cloneable, Serializable, Comparable<R
      * @return URL of the image
      * @since 4.1
      */
-    URL getLogo();
+    String getLogo();
 
     /**
      * Describes the canonical information url
      * where this service is advertised and may provide
      * help/guidance.
+     *
      * @return the info url.
      */
     String getInformationUrl();
 
     /**
      * Links to the privacy policy of this service, if any.
+     *
      * @return the link to privacy policy
      */
     String getPrivacyUrl();
@@ -211,5 +248,28 @@ public interface RegisteredService extends Cloneable, Serializable, Comparable<R
      * @return map of custom metadata.
      * @since 4.2
      */
-    Map<String, RegisteredServiceProperty> getProperties();
+    default Map<String, RegisteredServiceProperty> getProperties() {
+        return new LinkedHashMap<>(0);
+    }
+
+    /**
+     * A list of contacts that are responsible for the clients that use
+     * this service.
+     *
+     * @return list of Contacts
+     * @since 5.2
+     */
+    List<RegisteredServiceContact> getContacts();
+
+    /**
+     * Gets friendly name of this service.
+     * Typically describes the purpose of this service
+     * and the return value is usually used for display purposes.
+     *
+     * @return the friendly name
+     */
+    @JsonIgnore
+    default String getFriendlyName() {
+        return this.getClass().getSimpleName();
+    }
 }

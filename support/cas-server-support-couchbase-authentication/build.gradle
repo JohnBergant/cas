@@ -1,7 +1,8 @@
 description = "Apereo CAS Couchbase Authentication Support"
 dependencies {
-    compile project(":core:cas-server-core-util")
-    compile project(":support:cas-server-support-couchbase-core")
-    compile project(":core:cas-server-core-authentication")
-    compile project(":api:cas-server-core-api")
+    implementation project(":core:cas-server-core-util-api")
+    implementation project(":support:cas-server-support-couchbase-core")
+    implementation project(":core:cas-server-core-authentication-api")
+    implementation project(":core:cas-server-core-configuration-api")
+    api project(":api:cas-server-core-api")
 }

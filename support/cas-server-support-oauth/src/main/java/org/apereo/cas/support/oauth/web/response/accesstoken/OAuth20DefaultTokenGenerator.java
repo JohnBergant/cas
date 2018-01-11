@@ -49,38 +49,39 @@ public class OAuth20DefaultTokenGenerator implements OAuth20TokenGenerator {
     }
 
     @Override
-    public Pair<AccessToken, RefreshToken> generate(final AccessTokenRequestDataHolder responseHolder) {
-        LOGGER.debug("Creating refresh token for [{}]", responseHolder.getService());
+    public Pair<AccessToken, RefreshToken> generate(final AccessTokenRequestDataHolder holder) {
+        LOGGER.debug("Creating refresh token for [{}]", holder.getService());
         final Authentication authn = DefaultAuthenticationBuilder
-                .newInstance(responseHolder.getAuthentication())
-                .addAttribute(OAuth20Constants.GRANT_TYPE, responseHolder.getGrantType().toString())
-                .build();
+            .newInstance(holder.getAuthentication())
+            .addAttribute(OAuth20Constants.GRANT_TYPE, holder.getGrantType().toString())
+            .build();
 
-        final AccessToken accessToken = this.accessTokenFactory.create(responseHolder.getService(),
-                authn, responseHolder.getTicketGrantingTicket());
+        LOGGER.debug("Creating access token for [{}]", holder);
+        final AccessToken accessToken = this.accessTokenFactory.create(holder.getService(),
+            authn, holder.getTicketGrantingTicket(), holder.getScopes());
 
-        LOGGER.debug("Creating access token [{}]", accessToken);
-        addTicketToRegistry(accessToken, responseHolder.getTicketGrantingTicket());
+        LOGGER.debug("Created access token [{}]", accessToken);
+        addTicketToRegistry(accessToken, holder.getTicketGrantingTicket());
         LOGGER.debug("Added access token [{}] to registry", accessToken);
 
-        if (responseHolder.getToken() instanceof OAuthCode) {
-            final TicketState codeState = TicketState.class.cast(responseHolder.getToken());
+        if (holder.getToken() instanceof OAuthCode) {
+            final TicketState codeState = TicketState.class.cast(holder.getToken());
             codeState.update();
 
-            if (responseHolder.getToken().isExpired()) {
-                this.ticketRegistry.deleteTicket(responseHolder.getToken().getId());
+            if (holder.getToken().isExpired()) {
+                this.ticketRegistry.deleteTicket(holder.getToken().getId());
             } else {
-                this.ticketRegistry.updateTicket(responseHolder.getToken());
+                this.ticketRegistry.updateTicket(holder.getToken());
             }
-            this.ticketRegistry.updateTicket(responseHolder.getTicketGrantingTicket());
+            this.ticketRegistry.updateTicket(holder.getTicketGrantingTicket());
         }
 
         RefreshToken refreshToken = null;
-        if (responseHolder.isGenerateRefreshToken()) {
-            refreshToken = generateRefreshToken(responseHolder);
+        if (holder.isGenerateRefreshToken()) {
+            refreshToken = generateRefreshToken(holder);
             LOGGER.debug("Refresh Token: [{}]", refreshToken);
         } else {
-            LOGGER.debug("Service [{}] is not able/allowed to receive refresh tokens", responseHolder.getService());
+            LOGGER.debug("Service [{}] is not able/allowed to receive refresh tokens", holder.getService());
         }
 
         return Pair.of(accessToken, refreshToken);
@@ -105,7 +106,7 @@ public class OAuth20DefaultTokenGenerator implements OAuth20TokenGenerator {
     private RefreshToken generateRefreshToken(final AccessTokenRequestDataHolder responseHolder) {
         LOGGER.debug("Creating refresh token for [{}]", responseHolder.getService());
         final RefreshToken refreshToken = this.refreshTokenFactory.create(responseHolder.getService(),
-                responseHolder.getAuthentication(), responseHolder.getTicketGrantingTicket());
+            responseHolder.getAuthentication(), responseHolder.getTicketGrantingTicket(), responseHolder.getScopes());
         LOGGER.debug("Adding refresh token [{}] to the registry", refreshToken);
         addTicketToRegistry(refreshToken, responseHolder.getTicketGrantingTicket());
         return refreshToken;

@@ -15,14 +15,14 @@ import org.apereo.cas.adaptors.yubikey.web.flow.YubiKeyAccountSaveRegistrationAc
 import org.apereo.cas.authentication.AuthenticationEventExecutionPlanConfigurer;
 import org.apereo.cas.authentication.AuthenticationHandler;
 import org.apereo.cas.authentication.AuthenticationMetaDataPopulator;
+import org.apereo.cas.authentication.MultifactorAuthenticationProviderBypass;
+import org.apereo.cas.authentication.MultifactorAuthenticationUtils;
 import org.apereo.cas.authentication.metadata.AuthenticationContextAttributeMetaDataPopulator;
 import org.apereo.cas.authentication.principal.DefaultPrincipalFactory;
 import org.apereo.cas.authentication.principal.PrincipalFactory;
 import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.configuration.model.support.mfa.YubiKeyMultifactorProperties;
-import org.apereo.cas.services.DefaultMultifactorAuthenticationProviderBypass;
 import org.apereo.cas.services.MultifactorAuthenticationProvider;
-import org.apereo.cas.services.MultifactorAuthenticationProviderBypass;
 import org.apereo.cas.services.ServicesManager;
 import org.apereo.cas.util.http.HttpClient;
 import org.slf4j.Logger;
@@ -64,14 +64,14 @@ public class YubiKeyAuthenticationEventExecutionPlanConfiguration {
     public AuthenticationMetaDataPopulator yubikeyAuthenticationMetaDataPopulator() {
         final String authenticationContextAttribute = casProperties.getAuthn().getMfa().getAuthenticationContextAttribute();
         return new AuthenticationContextAttributeMetaDataPopulator(authenticationContextAttribute,
-                yubikeyAuthenticationHandler(),
-                yubikeyAuthenticationProvider());
+            yubikeyAuthenticationHandler(),
+            yubikeyAuthenticationProvider());
     }
 
     @Bean
     @RefreshScope
     public MultifactorAuthenticationProviderBypass yubikeyBypassEvaluator() {
-        return new DefaultMultifactorAuthenticationProviderBypass(casProperties.getAuthn().getMfa().getYubikey().getBypass());
+        return MultifactorAuthenticationUtils.newMultifactorAuthenticationProviderBypass(casProperties.getAuthn().getMfa().getYubikey().getBypass());
     }
 
     @ConditionalOnMissingBean(name = "yubikeyPrincipalFactory")
@@ -107,8 +107,8 @@ public class YubiKeyAuthenticationEventExecutionPlanConfiguration {
     public AuthenticationHandler yubikeyAuthenticationHandler() {
         final YubiKeyMultifactorProperties yubi = this.casProperties.getAuthn().getMfa().getYubikey();
         final YubiKeyAuthenticationHandler handler = new YubiKeyAuthenticationHandler(yubi.getName(),
-                servicesManager, yubikeyPrincipalFactory(),
-                yubicoClient(), yubiKeyAccountRegistry());
+            servicesManager, yubikeyPrincipalFactory(),
+            yubicoClient(), yubiKeyAccountRegistry());
         return handler;
     }
 
@@ -143,22 +143,20 @@ public class YubiKeyAuthenticationEventExecutionPlanConfiguration {
         }
         if (yubi.getAllowedDevices() != null) {
             LOGGER.debug("Using statically-defined devices for [{}] as the YubiKey account registry",
-                    yubi.getAllowedDevices().keySet());
+                yubi.getAllowedDevices().keySet());
             return new WhitelistYubiKeyAccountRegistry(yubi.getAllowedDevices(), yubiKeyAccountValidator());
         }
 
         LOGGER.warn("All credentials are considered eligible for YubiKey authentication. "
-                        + "Consider providing an account registry implementation via [{}]",
-                YubiKeyAccountRegistry.class.getName());
+                + "Consider providing an account registry implementation via [{}]",
+            YubiKeyAccountRegistry.class.getName());
         return new OpenYubiKeyAccountRegistry();
     }
 
     @Bean
     @RefreshScope
     public MultifactorAuthenticationProvider yubikeyAuthenticationProvider() {
-        final YubiKeyMultifactorAuthenticationProvider p = new YubiKeyMultifactorAuthenticationProvider(
-                yubicoClient(),
-                this.httpClient);
+        final YubiKeyMultifactorAuthenticationProvider p = new YubiKeyMultifactorAuthenticationProvider(yubicoClient(), this.httpClient);
         p.setBypassEvaluator(yubikeyBypassEvaluator());
         p.setGlobalFailureMode(casProperties.getAuthn().getMfa().getGlobalFailureMode());
         p.setOrder(casProperties.getAuthn().getMfa().getYubikey().getRank());

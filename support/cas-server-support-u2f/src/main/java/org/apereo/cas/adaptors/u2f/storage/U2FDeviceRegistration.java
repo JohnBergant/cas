@@ -2,6 +2,7 @@ package org.apereo.cas.adaptors.u2f.storage;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import org.hibernate.annotations.GenericGenerator;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -20,22 +21,28 @@ import java.time.LocalDate;
  */
 @Entity
 @Table(name = "U2FDeviceRegistration")
-@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "@class")
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY)
 public class U2FDeviceRegistration {
+    @org.springframework.data.annotation.Id
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private long id = Integer.MAX_VALUE;
+    @GeneratedValue(strategy = GenerationType.AUTO, generator = "native")
+    @GenericGenerator(name = "native", strategy = "native")
+    private long id = -1;
 
     @Column(length = 255, updatable = true, insertable = true, nullable = false)
     private String username;
 
     @Lob
-    @Column(name = "record")
+    @Column(name = "record", length = 4000)
     private String record;
 
     @Column(nullable = false, columnDefinition = "TIMESTAMP")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
-    private LocalDate date;
+    private LocalDate createdDate;
+
+    public U2FDeviceRegistration() {
+        setId(System.currentTimeMillis());
+    }
 
     public String getRecord() {
         return record;
@@ -45,12 +52,12 @@ public class U2FDeviceRegistration {
         this.record = record;
     }
 
-    public LocalDate getDate() {
-        return date;
+    public LocalDate getCreatedDate() {
+        return createdDate;
     }
 
-    public void setDate(final LocalDate date) {
-        this.date = date;
+    public void setCreatedDate(final LocalDate createdDate) {
+        this.createdDate = createdDate;
     }
 
     public long getId() {

@@ -19,7 +19,7 @@ Support is enabled by adding the following module into the overlay:
 </dependency>
 ```
 
-To see the relevant list of CAS properties, please [review this guide](Configuration-Properties.html#resource-based-jsonyaml-service-registry).
+To see the relevant list of CAS properties, please [review this guide](Configuration-Properties.html#yaml-service-registry).
 
 
 A sample YAML file follows:
@@ -30,11 +30,15 @@ serviceId: "testId"
 name: "YAML"
 id: 1000
 description: "description"
-attributeReleasePolicy: !<org.apereo.cas.services.ReturnAllAttributeReleasePolicy>
+attributeReleasePolicy: !<org.apereo.cas.services.ReturnAllAttributeReleasePolicy> {}
 accessStrategy: !<org.apereo.cas.services.DefaultRegisteredServiceAccessStrategy>
   enabled: true
   ssoEnabled: true
 ```
+
+<div class="alert alert-warning"><strong>YAML Validation</strong><p>
+The tags containing classname hints (<code>!&lt;classname&gt;</code>) cause problems with many YAML validators. If you need to validate your YAML, try removing those tags for validation. Remember that an empty map (<code>{}</code>) may be required after the tag if you are not including any attributes for a property.
+</p></div>
 
 <div class="alert alert-warning"><strong>Clustering Services</strong><p>
 You MUST consider that if your CAS server deployment is clustered, each CAS node in the cluster must have
@@ -56,7 +60,7 @@ The naming convention for new files is recommended to be the following:
 YAML fileName = serviceName + "-" + serviceNumericId + ".yml"
 ```
 
-Remember that because files are created based on the `serviceName`, you will need to make sure [characters considered invalid for file names](https://en.wikipedia.org/wiki/Filename#Reserved_characters_and_words) are not used as part of the name.
+Remember that because files are created based on the `serviceName`, you will need to make sure [characters considered invalid for file names](https://en.wikipedia.org/wiki/Filename#Reserved_characters_and_words) are not used as part of the name. Furthermore, note that CAS **MUST** be given full read/write permissions on directory which contains service definition files.
 
 <div class="alert alert-warning"><strong>Duplicate Services</strong><p>
 As you add more files to the directory, you need to be absolutely sure that no two service definitions
@@ -65,10 +69,7 @@ can be chosen arbitrarily, make sure all service numeric identifiers are unique.
 if duplicate data is found.
 </p></div>
 
-## Auto Initialization
 
-Upon startup and configuration permitting,
-the registry is able to auto initialize itself from default
-JSON service definitions available to CAS.
+## Replication
 
-To see the relevant list of CAS properties, please [review this guide](Configuration-Properties.html#service-registry).
+If CAS is to deployed in a cluster, the service definition files must be kept in sync for all CAS nodes. Please [review this guide](Configuring-Service-Replication.html) to learn more about available options.

@@ -76,7 +76,8 @@ public class WsFedAuthenticationEventExecutionPlanConfiguration {
         config.setAttributeMutator(this.attributeMutator);
         config.setAutoRedirect(wsfed.isAutoRedirect());
         config.setName(wsfed.getName());
-        
+        config.initialize();
+
         return config;
     }
 
@@ -113,13 +114,10 @@ public class WsFedAuthenticationEventExecutionPlanConfiguration {
                     if (!wsfed.isAttributeResolverEnabled()) {
                         plan.registerAuthenticationHandler(handler);
                     } else {
-                        final WsFederationCredentialsToPrincipalResolver r = new WsFederationCredentialsToPrincipalResolver();
-                        r.setConfiguration(getWsFederationConfiguration(wsfed));
-                        r.setAttributeRepository(attributeRepository);
-                        r.setPrincipalAttributeName(wsfed.getPrincipal().getPrincipalAttribute());
-                        r.setReturnNullIfNoAttributes(wsfed.getPrincipal().isReturnNull());
-                        r.setPrincipalFactory(adfsPrincipalFactory());
-
+                        final WsFederationCredentialsToPrincipalResolver r =
+                                new WsFederationCredentialsToPrincipalResolver(attributeRepository, adfsPrincipalFactory(),
+                                        wsfed.getPrincipal().isReturnNull(), wsfed.getPrincipal().getPrincipalAttribute(),
+                                        getWsFederationConfiguration(wsfed));
                         plan.registerAuthenticationHandlerWithPrincipalResolver(handler, r);
                     }
                 });

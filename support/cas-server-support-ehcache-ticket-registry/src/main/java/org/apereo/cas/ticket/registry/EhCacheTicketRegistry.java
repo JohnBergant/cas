@@ -42,8 +42,7 @@ public class EhCacheTicketRegistry extends AbstractTicketRegistry {
      * @param cacheManager  the cache manager
      * @param cipher        the cipher
      */
-    public EhCacheTicketRegistry(final TicketCatalog ticketCatalog, final CacheManager cacheManager,
-                                 final CipherExecutor cipher) {
+    public EhCacheTicketRegistry(final TicketCatalog ticketCatalog, final CacheManager cacheManager, final CipherExecutor cipher) {
         this.ticketCatalog = ticketCatalog;
         this.cacheManager = cacheManager;
         setCipherExecutor(cipher);
@@ -78,7 +77,6 @@ public class EhCacheTicketRegistry extends AbstractTicketRegistry {
     }
 
     /**
-     * {@inheritDoc}
      * Either the element is removed from the cache
      * or it's not found in the cache and is already removed.
      * Thus the result of this op would always be true.
@@ -142,7 +140,7 @@ public class EhCacheTicketRegistry extends AbstractTicketRegistry {
         config.setTimeToLiveSeconds(ticket.getExpirationPolicy().getTimeToLive());
 
         if (element.isExpired(config) || ticket.isExpired()) {
-            ehcache.evictExpiredElements();
+            ehcache.remove(element);
             LOGGER.debug("Ticket [{}] has expired and is now evicted from the cache", ticket.getId());
             return null;
         }

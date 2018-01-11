@@ -13,26 +13,16 @@ public class SimpleCacheStatistics implements CacheStatistics {
     private static final double BYTES_PER_MB = 1048510.0;
     private static final int PERCENTAGE_VALUE = 100;
 
-    private long size;
+    private final long size;
 
-    private long capacity;
+    private final long capacity;
 
-    private long evictions;
+    private final long evictions;
 
     private String name;
 
-    /**
-     * Creates a new instance with given parameters.
-     *
-     * @param size      Current cache size (e.g. items, bytes, etc).
-     * @param capacity  Current cache capacity (e.g. items, bytes, etc).  The units of capacity must be equal to size
-     *                  in order to produce a meaningful value for {@link #getPercentFree}.
-     * @param evictions Number of evictions reported by cache.
-     */
     public SimpleCacheStatistics(final long size, final long capacity, final long evictions) {
-        this.size = size;
-        this.capacity = capacity;
-        this.evictions = evictions;
+        this(size, capacity, evictions, "N/A");
     }
 
     /**

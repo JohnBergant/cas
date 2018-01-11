@@ -2,7 +2,7 @@ package org.apereo.cas.adaptors.generic.remote;
 
 import org.apereo.cas.authentication.Credential;
 import org.apereo.cas.authentication.adaptive.AdaptiveAuthenticationPolicy;
-import org.apereo.cas.web.flow.AbstractNonInteractiveCredentialsAction;
+import org.apereo.cas.web.flow.actions.AbstractNonInteractiveCredentialsAction;
 import org.apereo.cas.web.flow.resolver.CasDelegatingWebflowEventResolver;
 import org.apereo.cas.web.flow.resolver.CasWebflowEventResolver;
 import org.apereo.cas.web.support.WebUtils;
@@ -30,7 +30,7 @@ public class RemoteAddressNonInteractiveCredentialsAction extends AbstractNonInt
 
     @Override
     protected Credential constructCredentialsFromRequest(final RequestContext context) {
-        final HttpServletRequest request = WebUtils.getHttpServletRequest(context);
+        final HttpServletRequest request = WebUtils.getHttpServletRequestFromExternalWebflowContext(context);
         final String remoteAddress = request.getRemoteAddr();
 
         if (StringUtils.hasText(remoteAddress)) {

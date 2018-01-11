@@ -8,7 +8,6 @@ import com.amazonaws.auth.PropertiesCredentials;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
-import com.google.common.base.Throwables;
 import org.apache.commons.lang3.StringUtils;
 import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.configuration.model.support.dynamodb.DynamoDbServiceRegistryProperties;
@@ -43,7 +42,7 @@ public class DynamoDbServiceRegistryConfiguration {
     }
 
     @Bean
-    public ServiceRegistryDao serviceRegistryDao() throws Exception {
+    public ServiceRegistryDao serviceRegistryDao() {
         return new DynamoDbServiceRegistryDao(dynamoDbServiceRegistryFacilitator());
     }
 
@@ -106,7 +105,7 @@ public class DynamoDbServiceRegistryConfiguration {
 
             return client;
         } catch (final Exception e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e.getMessage(), e);
         }
     }
 }

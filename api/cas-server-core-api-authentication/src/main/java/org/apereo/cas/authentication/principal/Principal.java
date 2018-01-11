@@ -3,6 +3,7 @@ package org.apereo.cas.authentication.principal;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import java.io.Serializable;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -18,7 +19,8 @@ import java.util.Map;
  * @author Scott Battaglia
  * @since 3.0.0
  */
-@JsonTypeInfo(use=JsonTypeInfo.Id.CLASS, include= JsonTypeInfo.As.PROPERTY)
+@FunctionalInterface
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY)
 public interface Principal extends Serializable {
 
     /**
@@ -27,8 +29,9 @@ public interface Principal extends Serializable {
     String getId();
 
     /**
-     *
      * @return the map of configured attributes for this principal
      */
-    Map<String, Object> getAttributes();
+    default Map<String, Object> getAttributes() {
+        return new LinkedHashMap<>(0);
+    }
 }

@@ -3,9 +3,10 @@ package org.apereo.cas.trusted.config;
 import org.apereo.cas.CipherExecutor;
 import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.configuration.model.support.jpa.JpaConfigDataHolder;
-import org.apereo.cas.configuration.support.Beans;
+import org.apereo.cas.configuration.support.JpaBeans;
 import org.apereo.cas.trusted.authentication.api.MultifactorAuthenticationTrustStorage;
 import org.apereo.cas.trusted.authentication.storage.JpaMultifactorAuthenticationTrustStorage;
+import org.apereo.cas.util.CollectionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
+import java.util.List;
 
 /**
  * This is {@link JdbcMultifactorAuthnTrustConfiguration}.
@@ -42,25 +44,24 @@ public class JdbcMultifactorAuthnTrustConfiguration {
     @RefreshScope
     @Bean
     public HibernateJpaVendorAdapter jpaMfaTrustedAuthnVendorAdapter() {
-        return Beans.newHibernateJpaVendorAdapter(casProperties.getJdbc());
+        return JpaBeans.newHibernateJpaVendorAdapter(casProperties.getJdbc());
     }
-
-    @RefreshScope
+    
     @Bean
     public DataSource dataSourceMfaTrustedAuthn() {
-        return Beans.newDataSource(casProperties.getAuthn().getMfa().getTrusted().getJpa());
+        return JpaBeans.newDataSource(casProperties.getAuthn().getMfa().getTrusted().getJpa());
     }
 
     @Bean
-    public String[] jpaMfaTrustedAuthnPackagesToScan() {
-        return new String[]{"org.apereo.cas.trusted.authentication.api"};
+    public List<String> jpaMfaTrustedAuthnPackagesToScan() {
+        return CollectionUtils.wrapList("org.apereo.cas.trusted.authentication.api");
     }
 
     @Lazy
     @Bean
     public LocalContainerEntityManagerFactoryBean mfaTrustedAuthnEntityManagerFactory() {
         final LocalContainerEntityManagerFactoryBean bean =
-                Beans.newHibernateEntityManagerFactoryBean(
+                JpaBeans.newHibernateEntityManagerFactoryBean(
                         new JpaConfigDataHolder(
                                 jpaMfaTrustedAuthnVendorAdapter(),
                                 "jpaMfaTrustedAuthnContext",

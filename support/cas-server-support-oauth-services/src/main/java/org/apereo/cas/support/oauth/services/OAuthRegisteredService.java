@@ -1,5 +1,6 @@
 package org.apereo.cas.support.oauth.services;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
@@ -151,7 +152,7 @@ public class OAuthRegisteredService extends RegexRegisteredService {
             return false;
         }
         final OAuthRegisteredService rhs = (OAuthRegisteredService) obj;
-        return new EqualsBuilder()
+        final EqualsBuilder builder = new EqualsBuilder()
                 .appendSuper(super.equals(obj))
                 .append(this.clientSecret, rhs.clientSecret)
                 .append(this.clientId, rhs.clientId)
@@ -159,8 +160,9 @@ public class OAuthRegisteredService extends RegexRegisteredService {
                 .append(this.generateRefreshToken, rhs.generateRefreshToken)
                 .append(this.jsonFormat, rhs.jsonFormat)
                 .append(this.supportedResponseTypes, rhs.supportedResponseTypes)
-                .append(this.supportedGrantTypes, rhs.supportedGrantTypes)
-                .isEquals();
+                .append(this.supportedGrantTypes, rhs.supportedGrantTypes);
+        
+        return builder.isEquals();
     }
 
     @Override
@@ -180,6 +182,7 @@ public class OAuthRegisteredService extends RegexRegisteredService {
     /**
      * Post load processing, once the service is located via JPA.
      */
+    @Override
     @PostLoad
     public void postLoad() {
         if (this.supportedGrantTypes == null) {
@@ -188,5 +191,11 @@ public class OAuthRegisteredService extends RegexRegisteredService {
         if (this.supportedResponseTypes == null) {
             this.supportedResponseTypes = new HashSet<>();
         }
+    }
+
+    @JsonIgnore
+    @Override
+    public String getFriendlyName() {
+        return "OAuth2 Client";
     }
 }

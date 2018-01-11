@@ -6,9 +6,9 @@ import com.couchbase.client.java.view.View;
 import com.couchbase.client.java.view.ViewQuery;
 import com.couchbase.client.java.view.ViewResult;
 import com.couchbase.client.java.view.ViewRow;
-import com.google.common.base.Throwables;
 import org.apereo.cas.couchbase.core.CouchbaseClientFactory;
 import org.apereo.cas.support.events.service.CasRegisteredServiceLoadedEvent;
+import org.apereo.cas.util.CollectionUtils;
 import org.apereo.cas.util.serialization.StringSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,8 +16,8 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.PreDestroy;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.util.Arrays;
-import java.util.LinkedList;
+import java.util.Collection;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -33,23 +33,24 @@ import java.util.List;
  * @since 4.2.0
  */
 public class CouchbaseServiceRegistryDao extends AbstractServiceRegistryDao {
+    
+    /**
+     * The utils document.
+     */
+    public static final String UTIL_DOCUMENT = "utils";
+
     /**
      * All services view.
      */
     public static final View ALL_SERVICES_VIEW = DefaultView.create(
             "all_services",
             "function(d,m) {if (!isNaN(m.id)) {emit(m.id);}}");
-
+    
     /**
      * All views.
      */
-    public static final List<View> ALL_VIEWS = Arrays.asList(new View[]{ALL_SERVICES_VIEW});
-
-    /**
-     * The utils document.
-     */
-    public static final String UTIL_DOCUMENT = "utils";
-
+    public static final Collection<View> ALL_VIEWS = CollectionUtils.wrap(ALL_SERVICES_VIEW);
+    
     private static final Logger LOGGER = LoggerFactory.getLogger(CouchbaseServiceRegistryDao.class);
     
     private final CouchbaseClientFactory couchbase;
@@ -100,7 +101,7 @@ public class CouchbaseServiceRegistryDao extends AbstractServiceRegistryDao {
         try {
             LOGGER.debug("Loading services");
             final ViewResult allKeys = executeViewQueryForAllServices();
-            final List<RegisteredService> services = new LinkedList<>();
+            final List<RegisteredService> services = new ArrayList<>();
             for (final ViewRow row : allKeys) {
 
                 final RawJsonDocument document = row.document(RawJsonDocument.class);
@@ -117,7 +118,7 @@ public class CouchbaseServiceRegistryDao extends AbstractServiceRegistryDao {
             return services;
         } catch (final Exception e) {
             LOGGER.error(e.getMessage(), e);
-            return new LinkedList<>();
+            return new ArrayList<>();
         }
     }
 
@@ -154,7 +155,7 @@ public class CouchbaseServiceRegistryDao extends AbstractServiceRegistryDao {
         try {
             this.couchbase.shutdown();
         } catch (final Exception e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e.getMessage(), e);
         }
     }
 

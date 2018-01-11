@@ -21,6 +21,7 @@ import org.apereo.cas.ticket.SecurityTokenTicketFactory;
 import org.apereo.cas.ticket.TicketGrantingTicket;
 import org.apereo.cas.ticket.registry.TicketRegistry;
 import org.apereo.cas.ticket.registry.TicketRegistrySupport;
+import org.apereo.cas.util.RandomUtils;
 import org.apereo.cas.util.http.HttpClient;
 import org.apereo.cas.web.support.CookieRetrievingCookieGenerator;
 import org.apereo.cas.web.support.WebUtils;
@@ -32,11 +33,11 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.ModelAndView;
 
+import java.net.URI;
+import java.time.Instant;
+import java.util.Date;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.net.URI;
-import java.security.SecureRandom;
-import java.util.Date;
 
 /**
  * This is {@link BaseWSFederationRequestController}.
@@ -145,7 +146,7 @@ public abstract class BaseWSFederationRequestController {
             LOGGER.debug("Initializing callback service [{}]", callbackService);
 
             final RegexRegisteredService service = new RegexRegisteredService();
-            service.setId(Math.abs(new SecureRandom().nextLong()));
+            service.setId(Math.abs(RandomUtils.getInstanceNative().nextLong()));
             service.setEvaluationOrder(0);
             service.setName(service.getClass().getSimpleName());
             service.setDescription("WS-Federation Authentication Request");
@@ -190,7 +191,7 @@ public abstract class BaseWSFederationRequestController {
 
             final URI url = builder.build();
 
-            LOGGER.debug("Built service callback url [{}]", url);
+            LOGGER.trace("Built service callback url [{}]", url);
             return org.jasig.cas.client.util.CommonUtils.constructServiceUrl(request, response,
                     url.toString(), casProperties.getServer().getName(),
                     CasProtocolConstants.PARAMETER_SERVICE,
@@ -257,10 +258,10 @@ public abstract class BaseWSFederationRequestController {
 
         final long ttlMs = ttl * 60L * 1000L;
         if (ttlMs > 0) {
-            final Date createdDate = idpToken.getCreated();
+            final Instant createdDate = idpToken.getCreated();
             if (createdDate != null) {
                 final Date expiryDate = new Date();
-                expiryDate.setTime(createdDate.getTime() + ttlMs);
+                expiryDate.setTime(createdDate.toEpochMilli() + ttlMs);
                 if (expiryDate.before(new Date())) {
                     return true;
                 }
@@ -284,7 +285,7 @@ public abstract class BaseWSFederationRequestController {
         final Service targetService = this.serviceSelectionStrategy.resolveServiceFrom(this.webApplicationServiceFactory.createService(serviceUrl));
         final WSFederationRegisteredService svc = getWsFederationRegisteredService(targetService);
 
-        final WsFederationProperties.IdentityProvider idp = casProperties.getAuthn().getWsfedIdP().getIdp();
+        final WsFederationProperties.IdentityProvider idp = casProperties.getAuthn().getWsfedIdp().getIdp();
         if (StringUtils.isBlank(fedRequest.getWtrealm()) || !StringUtils.equals(fedRequest.getWtrealm(), svc.getRealm())) {
             LOGGER.warn("Realm [{}] is not authorized for matching service [{}]", fedRequest.getWtrealm(), svc);
             throw new UnauthorizedServiceException(UnauthorizedServiceException.CODE_UNAUTHZ_SERVICE, StringUtils.EMPTY);

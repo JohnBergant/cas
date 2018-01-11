@@ -3,14 +3,12 @@ package org.apereo.cas.adaptors.trusted.authentication.handler.support;
 import org.apereo.cas.adaptors.trusted.authentication.principal.PrincipalBearingCredential;
 import org.apereo.cas.authentication.AbstractAuthenticationHandler;
 import org.apereo.cas.authentication.Credential;
-import org.apereo.cas.authentication.DefaultHandlerResult;
-import org.apereo.cas.authentication.HandlerResult;
+import org.apereo.cas.authentication.DefaultAuthenticationHandlerExecutionResult;
+import org.apereo.cas.authentication.AuthenticationHandlerExecutionResult;
 import org.apereo.cas.authentication.principal.PrincipalFactory;
 import org.apereo.cas.services.ServicesManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.security.GeneralSecurityException;
 
 /**
  * AuthenticationHandler which authenticates Principal-bearing credentials.
@@ -31,10 +29,10 @@ public class PrincipalBearingCredentialsAuthenticationHandler extends AbstractAu
     }
 
     @Override
-    public HandlerResult authenticate(final Credential credential) throws GeneralSecurityException {
+    public AuthenticationHandlerExecutionResult authenticate(final Credential credential) {
         LOGGER.debug("Trusting credential for: [{}]", credential);
         final PrincipalBearingCredential bearingCredential = (PrincipalBearingCredential) credential;
-        return new DefaultHandlerResult(this, bearingCredential, bearingCredential.getPrincipal());
+        return new DefaultAuthenticationHandlerExecutionResult(this, bearingCredential, bearingCredential.getPrincipal());
     }
 
     @Override

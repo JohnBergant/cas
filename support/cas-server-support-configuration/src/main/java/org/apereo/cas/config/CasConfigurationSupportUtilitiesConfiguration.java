@@ -1,7 +1,6 @@
 
 package org.apereo.cas.config;
 
-import com.google.common.base.Throwables;
 import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.configuration.CasConfigurationPropertiesEnvironmentManager;
 import org.apereo.cas.support.events.AbstractCasEvent;
@@ -9,7 +8,7 @@ import org.apereo.cas.support.events.config.CasConfigurationCreatedEvent;
 import org.apereo.cas.support.events.config.CasConfigurationDeletedEvent;
 import org.apereo.cas.support.events.config.CasConfigurationModifiedEvent;
 import org.apereo.cas.util.function.ComposableFunction;
-import org.apereo.cas.util.PathWatcher;
+import org.apereo.cas.util.io.PathWatcherService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +34,6 @@ import java.util.function.Consumer;
 public class CasConfigurationSupportUtilitiesConfiguration {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CasConfigurationSupportUtilitiesConfiguration.class);
-    private static final int INTERVAL = 5_000;
 
     @Autowired
     private CasConfigurationProperties casProperties;
@@ -70,17 +68,16 @@ public class CasConfigurationSupportUtilitiesConfiguration {
                 final File config = configurationPropertiesEnvironmentManager.getStandaloneProfileConfigurationDirectory();
                 if (casProperties.getEvents().isTrackConfigurationModifications() && config.exists()) {
                     LOGGER.debug("Starting to watch configuration directory [{}]", config);
-                    new Thread(new PathWatcher(config.toPath(),
-                            createConfigurationCreatedEvent.andThen(publish),
-                            createConfigurationModifiedEvent.andThen(publish),
-                            createConfigurationDeletedEvent.andThen(publish),
-                            INTERVAL))
-                        .start();
+                    final PathWatcherService watcher = new PathWatcherService(config.toPath(),
+                            createConfigurationCreatedEvent.andNext(publish),
+                            createConfigurationModifiedEvent.andNext(publish),
+                            createConfigurationDeletedEvent.andNext(publish));
+                    watcher.start(config.getName());
                 } else {
                     LOGGER.info("CAS is configured to NOT watch configuration directory [{}]. Changes require manual reloads/restarts.", config);
                 }
             } catch (final Exception e) {
-                throw Throwables.propagate(e);
+                throw new RuntimeException(e.getMessage(), e);
             }
         }
     }

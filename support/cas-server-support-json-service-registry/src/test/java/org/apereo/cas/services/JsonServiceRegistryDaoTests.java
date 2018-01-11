@@ -1,6 +1,7 @@
 package org.apereo.cas.services;
 
-import org.apereo.cas.util.services.RegisteredServiceJsonSerializer;
+import org.apereo.cas.services.replication.NoOpRegisteredServiceReplicationStrategy;
+import org.apereo.cas.services.util.DefaultRegisteredServiceJsonSerializer;
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.context.ApplicationEventPublisher;
@@ -23,7 +24,9 @@ public class JsonServiceRegistryDaoTests extends AbstractResourceBasedServiceReg
     @Before
     public void setUp() {
         try {
-            this.dao = new JsonServiceRegistryDao(RESOURCE, false, mock(ApplicationEventPublisher.class));
+            this.dao = new JsonServiceRegistryDao(RESOURCE, false, 
+                    mock(ApplicationEventPublisher.class),
+                    new NoOpRegisteredServiceReplicationStrategy());
         } catch (final Exception e) {
             throw new IllegalArgumentException(e);
         }
@@ -32,7 +35,7 @@ public class JsonServiceRegistryDaoTests extends AbstractResourceBasedServiceReg
     @Test
     public void verifyLegacyServiceDefn() throws Exception {
         final ClassPathResource resource = new ClassPathResource("Legacy-10000003.json");
-        final RegisteredServiceJsonSerializer serializer = new RegisteredServiceJsonSerializer();
+        final DefaultRegisteredServiceJsonSerializer serializer = new DefaultRegisteredServiceJsonSerializer();
         final RegisteredService service = serializer.from(resource.getInputStream());
         assertNotNull(service);
     }
@@ -40,24 +43,25 @@ public class JsonServiceRegistryDaoTests extends AbstractResourceBasedServiceReg
     @Test
     public void verifyExistingDefinitionForCompatibility2() throws IOException {
         final Resource resource = new ClassPathResource("returnMappedAttributeReleasePolicyTest2.json");
-        final RegisteredServiceJsonSerializer serializer = new RegisteredServiceJsonSerializer();
+        final DefaultRegisteredServiceJsonSerializer serializer = new DefaultRegisteredServiceJsonSerializer();
         final RegisteredService service = serializer.from(resource.getInputStream());
         assertNotNull(service);
         assertNotNull(service.getAttributeReleasePolicy());
         final ReturnMappedAttributeReleasePolicy policy = (ReturnMappedAttributeReleasePolicy) service.getAttributeReleasePolicy();
         assertNotNull(policy);
-        assertEquals(policy.getAllowedAttributes().size(), 2);
+        assertEquals(2, policy.getAllowedAttributes().size());
     }
 
     @Test
     public void verifyExistingDefinitionForCompatibility1() throws IOException {
         final Resource resource = new ClassPathResource("returnMappedAttributeReleasePolicyTest1.json");
-        final RegisteredServiceJsonSerializer serializer = new RegisteredServiceJsonSerializer();
+        final DefaultRegisteredServiceJsonSerializer serializer = new DefaultRegisteredServiceJsonSerializer();
         final RegisteredService service = serializer.from(resource.getInputStream());
         assertNotNull(service);
         assertNotNull(service.getAttributeReleasePolicy());
         final ReturnMappedAttributeReleasePolicy policy = (ReturnMappedAttributeReleasePolicy) service.getAttributeReleasePolicy();
         assertNotNull(policy);
-        assertEquals(policy.getAllowedAttributes().size(), 2);
+        assertEquals(2, policy.getAllowedAttributes().size());
     }
+    
 }

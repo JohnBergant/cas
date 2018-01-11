@@ -8,6 +8,7 @@ import org.apereo.cas.ticket.Ticket;
 import org.apereo.cas.ticket.TicketGrantingTicket;
 import org.apereo.cas.util.DateTimeUtils;
 import org.apereo.cas.util.ISOStandardDateFormat;
+import org.apereo.cas.web.BaseCasMvcEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,7 +42,6 @@ public class SingleSignOnSessionsReportController extends BaseCasMvcEndpoint {
     private static final String TICKET_GRANTING_TICKET = "ticketGrantingTicket";
     private static final Logger LOGGER = LoggerFactory.getLogger(SingleSignOnSessionsReportController.class);
 
-    private final CasConfigurationProperties casProperties;
 
     private enum SsoSessionReportOptions {
         ALL("all"),
@@ -107,7 +107,6 @@ public class SingleSignOnSessionsReportController extends BaseCasMvcEndpoint {
                                                 final CasConfigurationProperties casProperties) {
         super("ssosessions", "/ssosessions", casProperties.getMonitor().getEndpoints().getSingleSignOnReport(), casProperties);
         this.centralAuthenticationService = centralAuthenticationService;
-        this.casProperties = casProperties;
     }
 
     /**
@@ -288,11 +287,10 @@ public class SingleSignOnSessionsReportController extends BaseCasMvcEndpoint {
      * @param request  the request
      * @param response the response
      * @return the model and view where json data will be rendered
-     * @throws Exception thrown during json processing
      */
     @GetMapping
     public ModelAndView showSsoSessions(final HttpServletRequest request,
-                                        final HttpServletResponse response) throws Exception {
+                                        final HttpServletResponse response) {
         ensureEndpointAccessIsAuthorized(request, response);
 
         return new ModelAndView(VIEW_SSO_SESSIONS);

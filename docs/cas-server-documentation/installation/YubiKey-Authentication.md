@@ -4,13 +4,12 @@ title: CAS - YubiKey Authentication
 ---
 
 # YubiKey Authentication
-Yubico is a cloud-based service that enables strong, easy-to-use and affordable two-factor authentication with one-time passwords
-through their flagship product, YubiKey. Once Yubico `clientId` and `secretKey` are obtained, then the configuration option
-is available to use YubiKey devices as a primary authentication source that CAS server could use to authenticate users.
+
+Yubico is a cloud-based service that enables strong, easy-to-use and affordable two-factor authentication with one-time passwords through their flagship product, YubiKey. Once Yubico `clientId` and `secretKey` are obtained, then the configuration optionis available to use YubiKey devices as a primary authentication source that CAS server could use to authenticate users.
+
 To configure YubiKey accounts and obtain API keys, [refer to the documentation](https://upgrade.yubico.com/getapikey/).
 
-[YubiKey](https://www.yubico.com/products/yubikey-hardware) authentication components are enabled by including the
-following dependencies in the WAR overlay:
+[YubiKey](https://www.yubico.com/products/yubikey-hardware) authentication components are enabled by including the following dependencies in the WAR overlay:
 
 ```xml
 <dependency>
@@ -24,11 +23,20 @@ following dependencies in the WAR overlay:
 
 To see the relevant list of CAS properties, please [review this guide](Configuration-Properties.html#yubikey).
 
-By default, all YubiKey accounts for users are allowed to authenticate.
+By default, all YubiKey accounts for users are allowed to authenticate. Devices that need to be authorized for authentication need to have followed an out-of-band registration process where the record for them is found in one of the following storage backends. Upon authentication, CAS will begin to search the configured registration database for matching record for the authenticated user and device in order to allow for a successful authentication event.
 
 ### JSON
 
 Registration records may be tracked inside a JSON file, provided the file path is specified in CAS settings. See [review this guide](Configuration-Properties.html#yubikey) for more info.
+
+The JSON structure is a simple map of user id to yubikey public id representing any particular device:
+
+```json
+{
+  "uid1": "yubikeyPublicId1",
+  "uid2": "yubikeyPublicId2"
+}
+```
 
 ### Whitelist
 
@@ -46,6 +54,14 @@ Support is enabled by including the following dependencies in the WAR overlay:
 </dependency>
 ```
 
+The expected database schema that is automatically created and configured by CAS contains a single table as `YubiKeyAccount` with the following fields:
+
+| Field              | Description
+|--------------------------------------------------------------------------------------
+| `id`               | Unique record identifier, acting as the primary key.
+| `publicId`         | The public identifier/key of the device used for authentication.
+| `username`         | The username whose device is registered.
+
 ### MongoDb
 
 Support is enabled by including the following dependencies in the WAR overlay:
@@ -57,6 +73,15 @@ Support is enabled by including the following dependencies in the WAR overlay:
      <version>${cas.version}</version>
 </dependency>
 ```
+
+The registration records are kept inside a single MongoDb collection of your choosing that will be auto-created by CAS.
+The structure of this collection is as follows:
+
+| Field              | Description
+|--------------------------------------------------------------------------------------
+| `id`               | Unique record identifier, acting as the primary key.
+| `publicId`         | The public identifier/key of the device used for authentication.
+| `username`         | The username whose device is registered.
 
 ### Custom
 
@@ -96,5 +121,8 @@ public class MyYubiKeyConfiguration {
 }
 ```
 
-
 [See this guide](Configuration-Management-Extensions.html) to learn more about how to register configurations into the CAS runtime.
+
+## REST Protocol Credential Extraction 
+
+In the event that the [CAS REST Protocol](../protocol/REST-Protocol.html) is turned on, a special credential extractor is injected into the REST authentication engine in order to recognize YubiKey credentials and authenticate them as part of the REST request. The expected parameter name in the request body is `yubikeyotp`.

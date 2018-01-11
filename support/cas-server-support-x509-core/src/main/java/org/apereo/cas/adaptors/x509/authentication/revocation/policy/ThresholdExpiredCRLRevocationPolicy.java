@@ -1,7 +1,7 @@
 package org.apereo.cas.adaptors.x509.authentication.revocation.policy;
 
 import org.apereo.cas.adaptors.x509.authentication.ExpiredCRLException;
-import org.apereo.cas.adaptors.x509.util.CertUtils;
+import org.apereo.cas.util.crypto.CertUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +15,6 @@ import java.time.ZonedDateTime;
  *
  * @author Marvin S. Addison
  * @since 3.4.6
- *
  */
 public class ThresholdExpiredCRLRevocationPolicy implements RevocationPolicy<X509CRL> {
 
@@ -42,7 +41,6 @@ public class ThresholdExpiredCRLRevocationPolicy implements RevocationPolicy<X50
      *
      * @throws ExpiredCRLException On expired CRL data. Check the exception type for exact details
      *
-     * @see RevocationPolicy#apply(java.lang.Object)
      */
     @Override
     public void apply(final X509CRL crl) throws ExpiredCRLException {

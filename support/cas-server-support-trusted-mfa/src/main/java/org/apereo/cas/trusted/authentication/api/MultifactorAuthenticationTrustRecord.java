@@ -6,6 +6,7 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import org.hibernate.annotations.GenericGenerator;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -26,8 +27,10 @@ import java.time.LocalDate;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class MultifactorAuthenticationTrustRecord implements Comparable<MultifactorAuthenticationTrustRecord> {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private long id = Integer.MAX_VALUE;
+    @org.springframework.data.annotation.Id
+    @GeneratedValue(strategy = GenerationType.AUTO, generator = "native")
+    @GenericGenerator(name = "native", strategy = "native")
+    private long id = -1;
 
     @Column(length = 255, updatable = true, insertable = true, nullable = false)
     private String principal;
@@ -37,20 +40,24 @@ public class MultifactorAuthenticationTrustRecord implements Comparable<Multifac
 
     @Column(nullable = false, columnDefinition = "TIMESTAMP")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
-    private LocalDate date;
+    private LocalDate recordDate;
 
-    @Column(length = 255, updatable = true, insertable = true, nullable = false)
-    private String key;
+    @Column(length = 500, updatable = true, insertable = true, nullable = false)
+    private String recordKey;
 
-    @Column(length = 255, updatable = true, insertable = true, nullable = false)
+    @Column(length = 500, updatable = true, insertable = true, nullable = false)
     private String name;
-    
-    public String getKey() {
-        return key;
+
+    public MultifactorAuthenticationTrustRecord() {
+        this.id = System.currentTimeMillis();
     }
 
-    public void setKey(final String id) {
-        this.key = id;
+    public String getRecordKey() {
+        return recordKey;
+    }
+
+    public void setRecordKey(final String id) {
+        this.recordKey = id;
     }
 
     public String getPrincipal() {
@@ -69,12 +76,12 @@ public class MultifactorAuthenticationTrustRecord implements Comparable<Multifac
         this.geography = geography;
     }
 
-    public LocalDate getDate() {
-        return date;
+    public LocalDate getRecordDate() {
+        return recordDate;
     }
 
-    public void setDate(final LocalDate date) {
-        this.date = date;
+    public void setRecordDate(final LocalDate date) {
+        this.recordDate = date;
     }
 
     @Override
@@ -92,8 +99,8 @@ public class MultifactorAuthenticationTrustRecord implements Comparable<Multifac
         return new EqualsBuilder()
                 .append(this.principal, rhs.principal)
                 .append(this.geography, rhs.geography)
-                .append(this.date, rhs.date)
-                .append(this.key, rhs.key)
+                .append(this.recordDate, rhs.recordDate)
+                .append(this.recordKey, rhs.recordKey)
                 .append(this.name, rhs.name)
                 .isEquals();
     }
@@ -111,8 +118,8 @@ public class MultifactorAuthenticationTrustRecord implements Comparable<Multifac
         return new HashCodeBuilder()
                 .append(principal)
                 .append(geography)
-                .append(date)
-                .append(key)
+                .append(recordDate)
+                .append(recordKey)
                 .append(name)
                 .toHashCode();
     }
@@ -122,7 +129,7 @@ public class MultifactorAuthenticationTrustRecord implements Comparable<Multifac
         return new ToStringBuilder(this, ToStringStyle.NO_CLASS_NAME_STYLE)
                 .append("principal", principal)
                 .append("geography", geography)
-                .append("date", date)
+                .append("recordDate", recordDate)
                 .append("name", name)
                 .toString();
     }
@@ -136,7 +143,7 @@ public class MultifactorAuthenticationTrustRecord implements Comparable<Multifac
      */
     public static MultifactorAuthenticationTrustRecord newInstance(final String principal, final String geography) {
         final MultifactorAuthenticationTrustRecord r = new MultifactorAuthenticationTrustRecord();
-        r.setDate(LocalDate.now());
+        r.setRecordDate(LocalDate.now());
         r.setPrincipal(principal);
         r.setGeography(geography);
         r.setName(principal.concat("-").concat(LocalDate.now().toString()).concat("-").concat(geography));
@@ -145,6 +152,6 @@ public class MultifactorAuthenticationTrustRecord implements Comparable<Multifac
 
     @Override
     public int compareTo(final MultifactorAuthenticationTrustRecord o) {
-        return this.date.compareTo(o.getDate());
+        return this.recordDate.compareTo(o.getRecordDate());
     }
 }

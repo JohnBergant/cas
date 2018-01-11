@@ -1,6 +1,5 @@
 package org.apereo.cas.web.report;
 
-import com.google.common.base.Throwables;
 import org.apache.commons.io.input.Tailer;
 import org.apache.commons.io.input.TailerListenerAdapter;
 import org.apache.commons.lang3.tuple.Pair;
@@ -26,7 +25,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashSet;
@@ -70,11 +68,11 @@ public class LoggingOutputSocketMessagingController {
                 registerLogFileTailThreads();
             }
         } catch (final Exception e) {
-            throw Throwables.propagate(e);
+            throw new RuntimeException(e.getMessage(), e);
         }
     }
 
-    private void registerLogFileTailThreads() throws IOException {
+    private void registerLogFileTailThreads() {
         final Collection<String> outputFileNames = new HashSet<>();
         final Collection<Appender> loggerAppenders = this.loggerContext.getConfiguration().getAppenders().values();
         loggerAppenders.forEach(appender -> {
@@ -104,11 +102,10 @@ public class LoggingOutputSocketMessagingController {
      * Gets logs.
      *
      * @return the log output
-     * @throws Exception the exception
      */
 
     @SendTo("/logs/logoutput")
-    public String logoutput() throws Exception {
+    public String logoutput() {
         synchronized (LOCK) {
             final String log = LOG_OUTPUT.toString();
             LOG_OUTPUT = new StringBuilder();

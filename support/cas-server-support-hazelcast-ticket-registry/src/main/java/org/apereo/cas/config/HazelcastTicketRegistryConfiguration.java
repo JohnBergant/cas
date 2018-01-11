@@ -5,8 +5,7 @@ import com.hazelcast.config.MapConfig;
 import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import org.apereo.cas.configuration.CasConfigurationProperties;
-import org.apereo.cas.configuration.model.support.hazelcast.HazelcastProperties;
-import org.apereo.cas.configuration.support.Beans;
+import org.apereo.cas.configuration.model.support.hazelcast.HazelcastTicketRegistryProperties;
 import org.apereo.cas.hz.HazelcastConfigurationFactory;
 import org.apereo.cas.ticket.TicketCatalog;
 import org.apereo.cas.ticket.TicketDefinition;
@@ -14,6 +13,7 @@ import org.apereo.cas.ticket.registry.HazelcastTicketRegistry;
 import org.apereo.cas.ticket.registry.NoOpTicketRegistryCleaner;
 import org.apereo.cas.ticket.registry.TicketRegistry;
 import org.apereo.cas.ticket.registry.TicketRegistryCleaner;
+import org.apereo.cas.util.CoreTicketUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,18 +50,17 @@ public class HazelcastTicketRegistryConfiguration {
     @Autowired
     @Bean
     public TicketRegistry ticketRegistry(@Qualifier("ticketCatalog") final TicketCatalog ticketCatalog) {
-        final HazelcastProperties hz = casProperties.getTicket().getRegistry().getHazelcast();
+        final HazelcastTicketRegistryProperties hz = casProperties.getTicket().getRegistry().getHazelcast();
         final HazelcastTicketRegistry r = new HazelcastTicketRegistry(hazelcast(ticketCatalog),
                 ticketCatalog,
                 hz.getPageSize());
-        r.setCipherExecutor(Beans.newTicketRegistryCipherExecutor(hz.getCrypto()));
+        r.setCipherExecutor(CoreTicketUtils.newTicketRegistryCipherExecutor(hz.getCrypto(), "hazelcast"));
         return r;
     }
 
-    @Autowired
     @Bean
-    public TicketRegistryCleaner ticketRegistryCleaner(@Qualifier("ticketCatalog") final TicketCatalog ticketCatalog) {
-        return new NoOpTicketRegistryCleaner();
+    public TicketRegistryCleaner ticketRegistryCleaner() {
+        return NoOpTicketRegistryCleaner.getInstance();
     }
 
     @Autowired
@@ -71,7 +70,7 @@ public class HazelcastTicketRegistryConfiguration {
     }
 
     private Config getConfig(final TicketCatalog ticketCatalog) {
-        final HazelcastProperties hz = casProperties.getTicket().getRegistry().getHazelcast();
+        final HazelcastTicketRegistryProperties hz = casProperties.getTicket().getRegistry().getHazelcast();
         final Map<String, MapConfig> configs = buildHazelcastMapConfigurations(ticketCatalog);
         final HazelcastConfigurationFactory factory = new HazelcastConfigurationFactory();
         return factory.build(hz, configs);
@@ -80,9 +79,9 @@ public class HazelcastTicketRegistryConfiguration {
     private Map<String, MapConfig> buildHazelcastMapConfigurations(final TicketCatalog ticketCatalog) {
         final Map<String, MapConfig> mapConfigs = new HashMap<>();
 
-        final HazelcastProperties hz = casProperties.getTicket().getRegistry().getHazelcast();
+        final HazelcastTicketRegistryProperties hz = casProperties.getTicket().getRegistry().getHazelcast();
         final HazelcastConfigurationFactory factory = new HazelcastConfigurationFactory();
-        
+
         final Collection<TicketDefinition> definitions = ticketCatalog.findAll();
         definitions.forEach(t -> {
             final MapConfig mapConfig = factory.buildMapConfig(hz, t.getProperties().getStorageName(), t.getProperties().getStorageTimeout());

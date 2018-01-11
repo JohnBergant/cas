@@ -12,6 +12,7 @@ import org.apereo.cas.services.DenyAllAttributeReleasePolicy;
 import org.apereo.cas.services.RegexRegisteredService;
 import org.apereo.cas.services.RegisteredService;
 import org.apereo.cas.services.ServicesManager;
+import org.apereo.cas.support.oauth.OAuth20Constants;
 import org.apereo.cas.support.oauth.authenticator.Authenticators;
 import org.apereo.cas.support.oauth.authenticator.OAuth20CasAuthenticationBuilder;
 import org.apereo.cas.support.oauth.authenticator.OAuthClientAuthenticator;
@@ -32,13 +33,18 @@ import org.apereo.cas.support.oauth.web.OAuth20HandlerInterceptorAdapter;
 import org.apereo.cas.support.oauth.web.endpoints.OAuth20AccessTokenEndpointController;
 import org.apereo.cas.support.oauth.web.endpoints.OAuth20AuthorizeEndpointController;
 import org.apereo.cas.support.oauth.web.endpoints.OAuth20CallbackAuthorizeEndpointController;
-import org.apereo.cas.support.oauth.web.endpoints.OAuth20UserProfileControllerController;
+import org.apereo.cas.support.oauth.web.endpoints.OAuth20UserProfileEndpointController;
 import org.apereo.cas.support.oauth.web.response.OAuth20CasClientRedirectActionBuilder;
 import org.apereo.cas.support.oauth.web.response.OAuth20DefaultCasClientRedirectActionBuilder;
 import org.apereo.cas.support.oauth.web.response.accesstoken.AccessTokenResponseGenerator;
 import org.apereo.cas.support.oauth.web.response.accesstoken.OAuth20AccessTokenResponseGenerator;
 import org.apereo.cas.support.oauth.web.response.accesstoken.OAuth20DefaultTokenGenerator;
 import org.apereo.cas.support.oauth.web.response.accesstoken.OAuth20TokenGenerator;
+import org.apereo.cas.support.oauth.web.response.accesstoken.ext.AccessTokenAuthorizationCodeGrantRequestExtractor;
+import org.apereo.cas.support.oauth.web.response.accesstoken.ext.AccessTokenClientCredentialsGrantRequestExtractor;
+import org.apereo.cas.support.oauth.web.response.accesstoken.ext.AccessTokenPasswordGrantRequestExtractor;
+import org.apereo.cas.support.oauth.web.response.accesstoken.ext.AccessTokenRefreshTokenGrantRequestExtractor;
+import org.apereo.cas.support.oauth.web.response.accesstoken.ext.BaseAccessTokenGrantRequestExtractor;
 import org.apereo.cas.support.oauth.web.response.callback.OAuth20AuthorizationCodeAuthorizationResponseBuilder;
 import org.apereo.cas.support.oauth.web.response.callback.OAuth20AuthorizationResponseBuilder;
 import org.apereo.cas.support.oauth.web.response.callback.OAuth20ClientCredentialsResponseBuilder;
@@ -47,6 +53,8 @@ import org.apereo.cas.support.oauth.web.response.callback.OAuth20TokenAuthorizat
 import org.apereo.cas.support.oauth.web.views.ConsentApprovalViewResolver;
 import org.apereo.cas.support.oauth.web.views.OAuth20CallbackAuthorizeViewResolver;
 import org.apereo.cas.support.oauth.web.views.OAuth20ConsentApprovalViewResolver;
+import org.apereo.cas.support.oauth.web.views.OAuth20DefaultUserProfileViewRenderer;
+import org.apereo.cas.support.oauth.web.views.OAuth20UserProfileViewRenderer;
 import org.apereo.cas.ticket.ExpirationPolicy;
 import org.apereo.cas.ticket.UniqueTicketIdGenerator;
 import org.apereo.cas.ticket.accesstoken.AccessTokenFactory;
@@ -59,7 +67,10 @@ import org.apereo.cas.ticket.refreshtoken.DefaultRefreshTokenFactory;
 import org.apereo.cas.ticket.refreshtoken.OAuthRefreshTokenExpirationPolicy;
 import org.apereo.cas.ticket.refreshtoken.RefreshTokenFactory;
 import org.apereo.cas.ticket.registry.TicketRegistry;
+import org.apereo.cas.util.CollectionUtils;
 import org.apereo.cas.util.DefaultUniqueTicketIdGenerator;
+import org.apereo.cas.util.RandomUtils;
+import org.apereo.cas.util.RegexUtils;
 import org.apereo.cas.web.support.CookieRetrievingCookieGenerator;
 import org.pac4j.cas.client.CasClient;
 import org.pac4j.cas.config.CasConfiguration;
@@ -69,8 +80,9 @@ import org.pac4j.core.credentials.authenticator.Authenticator;
 import org.pac4j.core.http.UrlResolver;
 import org.pac4j.http.client.direct.DirectBasicAuthClient;
 import org.pac4j.http.client.direct.DirectFormClient;
-import org.pac4j.springframework.web.CallbackController;
 import org.pac4j.springframework.web.SecurityInterceptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -79,15 +91,20 @@ import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
 import org.springframework.web.servlet.handler.HandlerInterceptorAdapter;
 
 import javax.annotation.PostConstruct;
-import java.security.SecureRandom;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -105,6 +122,7 @@ import static org.apereo.cas.support.oauth.OAuth20Constants.CLIENT_SECRET;
 @Configuration("oauthConfiguration")
 @EnableConfigurationProperties(CasConfigurationProperties.class)
 public class CasOAuthConfiguration extends WebMvcConfigurerAdapter {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CasOAuthConfiguration.class);
 
     @Autowired
     private ApplicationContext applicationContext;
@@ -147,14 +165,12 @@ public class CasOAuthConfiguration extends WebMvcConfigurerAdapter {
     public OAuth20CasClientRedirectActionBuilder oauthCasClientRedirectActionBuilder() {
         return new OAuth20DefaultCasClientRedirectActionBuilder();
     }
-
-    @RefreshScope
+    
     @Bean
     public UrlResolver casCallbackUrlResolver() {
         return new OAuth20CasCallbackUrlResolver(OAuth20Utils.casOAuthCallbackUrl(casProperties.getServer().getPrefix()));
     }
 
-    @RefreshScope
     @Bean
     public Config oauthSecConfig() {
         final CasConfiguration cfg = new CasConfiguration(casProperties.getServer().getLoginUrl());
@@ -175,26 +191,23 @@ public class CasOAuthConfiguration extends WebMvcConfigurerAdapter {
         final DirectFormClient userFormClient = new DirectFormClient(oAuthUserAuthenticator());
         userFormClient.setName(Authenticators.CAS_OAUTH_CLIENT_USER_FORM);
         return new Config(OAuth20Utils.casOAuthCallbackUrl(casProperties.getServer().getPrefix()),
-                oauthCasClient, basicAuthClient, directFormClient, userFormClient);
+            oauthCasClient, basicAuthClient, directFormClient, userFormClient);
     }
 
     @ConditionalOnMissingBean(name = "requiresAuthenticationAuthorizeInterceptor")
     @Bean
-    @RefreshScope
     public SecurityInterceptor requiresAuthenticationAuthorizeInterceptor() {
         return new SecurityInterceptor(oauthSecConfig(), Authenticators.CAS_OAUTH_CLIENT);
     }
 
     @ConditionalOnMissingBean(name = "consentApprovalViewResolver")
     @Bean
-    @RefreshScope
     public ConsentApprovalViewResolver consentApprovalViewResolver() {
         return new OAuth20ConsentApprovalViewResolver(casProperties);
     }
 
     @ConditionalOnMissingBean(name = "callbackAuthorizeViewResolver")
     @Bean
-    @RefreshScope
     public OAuth20CallbackAuthorizeViewResolver callbackAuthorizeViewResolver() {
         return new OAuth20CallbackAuthorizeViewResolver() {
         };
@@ -202,19 +215,57 @@ public class CasOAuthConfiguration extends WebMvcConfigurerAdapter {
 
     @ConditionalOnMissingBean(name = "requiresAuthenticationAccessTokenInterceptor")
     @Bean
-    @RefreshScope
     public SecurityInterceptor requiresAuthenticationAccessTokenInterceptor() {
         final String clients = Stream.of(Authenticators.CAS_OAUTH_CLIENT_BASIC_AUTHN,
-                Authenticators.CAS_OAUTH_CLIENT_DIRECT_FORM,
-                Authenticators.CAS_OAUTH_CLIENT_USER_FORM).collect(Collectors.joining(","));
+            Authenticators.CAS_OAUTH_CLIENT_DIRECT_FORM,
+            Authenticators.CAS_OAUTH_CLIENT_USER_FORM).collect(Collectors.joining(","));
         return new SecurityInterceptor(oauthSecConfig(), clients);
     }
 
     @ConditionalOnMissingBean(name = "oauthInterceptor")
     @Bean
-    @RefreshScope
     public HandlerInterceptorAdapter oauthInterceptor() {
-        return new OAuth20HandlerInterceptorAdapter(requiresAuthenticationAccessTokenInterceptor(), requiresAuthenticationAuthorizeInterceptor());
+        final String throttler = casProperties.getAuthn().getOauth().getThrottler();
+        final OAuth20HandlerInterceptorAdapter oAuth20HandlerInterceptorAdapter = new OAuth20HandlerInterceptorAdapter(
+            requiresAuthenticationAccessTokenInterceptor(), requiresAuthenticationAuthorizeInterceptor(), accessTokenGrantRequestExtractors());
+
+        if ("neverThrottle".equalsIgnoreCase(throttler)) {
+            LOGGER.debug("Authentication throttling is disabled for OAuth");
+            return oAuth20HandlerInterceptorAdapter;
+        }
+        return getHandlerInterceptorForThrottling(oAuth20HandlerInterceptorAdapter);
+    }
+
+    private HandlerInterceptorAdapter getHandlerInterceptorForThrottling(final OAuth20HandlerInterceptorAdapter oAuth20HandlerInterceptorAdapter) {
+        final String throttler = casProperties.getAuthn().getOauth().getThrottler();
+        LOGGER.debug("Locating authentication throttler instance [{}] for OAuth", throttler);
+        final HandlerInterceptor throttledInterceptor = this.applicationContext.getBean(throttler, HandlerInterceptor.class);
+
+        final String throttledUrl = OAuth20Constants.BASE_OAUTH20_URL.concat("/")
+            .concat(OAuth20Constants.ACCESS_TOKEN_URL + "|" + OAuth20Constants.TOKEN_URL);
+        final Pattern pattern = RegexUtils.createPattern(throttledUrl);
+        LOGGER.debug("Authentication throttler instance for OAuth shall intercept the URL pattern [{}]", pattern.pattern());
+
+        final HandlerInterceptorAdapter throttledInterceptorAdapter = new HandlerInterceptorAdapter() {
+            @Override
+            public boolean preHandle(final HttpServletRequest request, final HttpServletResponse response, final Object handler) throws Exception {
+                if (RegexUtils.matches(pattern, request.getServletPath()) && !throttledInterceptor.preHandle(request, response, handler)) {
+                    LOGGER.trace("OAuth authentication throttler prevented the request at [{}]", request.getServletPath());
+                    return false;
+                }
+                return oAuth20HandlerInterceptorAdapter.preHandle(request, response, handler);
+            }
+
+            @Override
+            public void postHandle(final HttpServletRequest request, final HttpServletResponse response, final Object handler,
+                                   final ModelAndView modelAndView) throws Exception {
+                if (RegexUtils.matches(pattern, request.getServletPath())) {
+                    LOGGER.trace("OAuth authentication throttler post-processing the request at [{}]", request.getServletPath());
+                    throttledInterceptor.postHandle(request, response, handler, modelAndView);
+                }
+            }
+        };
+        return throttledInterceptorAdapter;
     }
 
     @Override
@@ -223,21 +274,18 @@ public class CasOAuthConfiguration extends WebMvcConfigurerAdapter {
     }
 
     @Bean
-    @RefreshScope
     public OAuth20CasClientRedirectActionBuilder defaultOAuthCasClientRedirectActionBuilder() {
         return new OAuth20DefaultCasClientRedirectActionBuilder();
     }
 
     @ConditionalOnMissingBean(name = "oAuthClientAuthenticator")
     @Bean
-    @RefreshScope
     public Authenticator<UsernamePasswordCredentials> oAuthClientAuthenticator() {
         return new OAuthClientAuthenticator(oAuthValidator(), this.servicesManager);
     }
 
     @ConditionalOnMissingBean(name = "oAuthUserAuthenticator")
     @Bean
-    @RefreshScope
     public Authenticator<UsernamePasswordCredentials> oAuthUserAuthenticator() {
         return new OAuthUserAuthenticator(authenticationSystemSupport, servicesManager, webApplicationServiceFactory);
     }
@@ -251,7 +299,6 @@ public class CasOAuthConfiguration extends WebMvcConfigurerAdapter {
 
     @ConditionalOnMissingBean(name = "oauthAccessTokenResponseGenerator")
     @Bean
-    @RefreshScope
     public AccessTokenResponseGenerator oauthAccessTokenResponseGenerator() {
         return new OAuth20AccessTokenResponseGenerator();
     }
@@ -264,13 +311,12 @@ public class CasOAuthConfiguration extends WebMvcConfigurerAdapter {
     }
 
     @Bean
-    @RefreshScope
     @ConditionalOnMissingBean(name = "accessTokenExpirationPolicy")
     public ExpirationPolicy accessTokenExpirationPolicy() {
         final OAuthProperties oauth = casProperties.getAuthn().getOauth();
         return new OAuthAccessTokenExpirationPolicy(
-                oauth.getAccessToken().getMaxTimeToLiveInSeconds(),
-                oauth.getAccessToken().getTimeToKillInSeconds()
+            oauth.getAccessToken().getMaxTimeToLiveInSeconds(),
+            oauth.getAccessToken().getTimeToKillInSeconds()
         );
     }
 
@@ -311,10 +357,10 @@ public class CasOAuthConfiguration extends WebMvcConfigurerAdapter {
     @RefreshScope
     public OAuth20CallbackAuthorizeEndpointController callbackAuthorizeController() {
         return new OAuth20CallbackAuthorizeEndpointController(servicesManager, ticketRegistry,
-                oAuthValidator(), defaultAccessTokenFactory(), oauthPrincipalFactory(),
-                webApplicationServiceFactory,
-                oauthSecConfig(), callbackController(), callbackAuthorizeViewResolver(),
-                profileScopeToAttributesFilter(), casProperties, ticketGrantingTicketCookieGenerator);
+            oAuthValidator(), defaultAccessTokenFactory(), oauthPrincipalFactory(),
+            webApplicationServiceFactory,
+            oauthSecConfig(), callbackAuthorizeViewResolver(),
+            profileScopeToAttributesFilter(), casProperties, ticketGrantingTicketCookieGenerator);
     }
 
     @ConditionalOnMissingBean(name = "oauthTokenGenerator")
@@ -324,38 +370,67 @@ public class CasOAuthConfiguration extends WebMvcConfigurerAdapter {
         return new OAuth20DefaultTokenGenerator(defaultAccessTokenFactory(), ticketRegistry, defaultRefreshTokenFactory());
     }
 
+    @Bean
+    public Collection<BaseAccessTokenGrantRequestExtractor> accessTokenGrantRequestExtractors() {
+        final BaseAccessTokenGrantRequestExtractor authzCodeExt =
+            new AccessTokenAuthorizationCodeGrantRequestExtractor(servicesManager, ticketRegistry,
+                centralAuthenticationService, casProperties.getAuthn().getOauth(),
+                webApplicationServiceFactory);
+
+        final BaseAccessTokenGrantRequestExtractor refreshTokenExt =
+            new AccessTokenRefreshTokenGrantRequestExtractor(servicesManager, ticketRegistry,
+                centralAuthenticationService, casProperties.getAuthn().getOauth(),
+                webApplicationServiceFactory);
+
+        final BaseAccessTokenGrantRequestExtractor pswExt =
+            new AccessTokenPasswordGrantRequestExtractor(servicesManager, ticketRegistry,
+                oauthCasAuthenticationBuilder(), centralAuthenticationService,
+                casProperties.getAuthn().getOauth());
+
+        final BaseAccessTokenGrantRequestExtractor credsExt =
+            new AccessTokenClientCredentialsGrantRequestExtractor(servicesManager, ticketRegistry,
+                oauthCasAuthenticationBuilder(), centralAuthenticationService,
+                casProperties.getAuthn().getOauth());
+
+        return CollectionUtils.wrapList(authzCodeExt, refreshTokenExt, pswExt, credsExt);
+    }
 
     @ConditionalOnMissingBean(name = "accessTokenController")
     @Bean
-    @RefreshScope
     public OAuth20AccessTokenEndpointController accessTokenController() {
         return new OAuth20AccessTokenEndpointController(
-                servicesManager,
-                ticketRegistry,
-                oAuthValidator(),
-                defaultAccessTokenFactory(),
-                oauthPrincipalFactory(),
-                webApplicationServiceFactory,
-                oauthTokenGenerator(),
-                accessTokenResponseGenerator(),
-                profileScopeToAttributesFilter(),
-                casProperties,
-                ticketGrantingTicketCookieGenerator,
-                oauthCasAuthenticationBuilder(),
-                centralAuthenticationService,
-                accessTokenExpirationPolicy()
+            servicesManager,
+            ticketRegistry,
+            oAuthValidator(),
+            defaultAccessTokenFactory(),
+            oauthPrincipalFactory(),
+            webApplicationServiceFactory,
+            oauthTokenGenerator(),
+            accessTokenResponseGenerator(),
+            profileScopeToAttributesFilter(),
+            casProperties,
+            ticketGrantingTicketCookieGenerator,
+            accessTokenExpirationPolicy(),
+            accessTokenGrantRequestExtractors()
         );
+    }
+
+    @ConditionalOnMissingBean(name = "oauthUserProfileViewRenderer")
+    @Bean
+    @RefreshScope
+    public OAuth20UserProfileViewRenderer oauthUserProfileViewRenderer() {
+        return new OAuth20DefaultUserProfileViewRenderer(casProperties.getAuthn().getOauth());
     }
 
     @ConditionalOnMissingBean(name = "profileController")
     @Bean
-    @RefreshScope
-    public OAuth20UserProfileControllerController profileController() {
-        return new OAuth20UserProfileControllerController(servicesManager,
-                ticketRegistry, oAuthValidator(), defaultAccessTokenFactory(),
-                oauthPrincipalFactory(), webApplicationServiceFactory,
-                profileScopeToAttributesFilter(), casProperties,
-                ticketGrantingTicketCookieGenerator);
+    public OAuth20UserProfileEndpointController profileController() {
+        return new OAuth20UserProfileEndpointController(servicesManager,
+            ticketRegistry, oAuthValidator(), defaultAccessTokenFactory(),
+            oauthPrincipalFactory(), webApplicationServiceFactory,
+            profileScopeToAttributesFilter(), casProperties,
+            ticketGrantingTicketCookieGenerator,
+            oauthUserProfileViewRenderer());
     }
 
     @ConditionalOnMissingBean(name = "oauthAuthorizationResponseBuilders")
@@ -363,7 +438,7 @@ public class CasOAuthConfiguration extends WebMvcConfigurerAdapter {
     @RefreshScope
     public Set<OAuth20AuthorizationResponseBuilder> oauthAuthorizationResponseBuilders() {
         final Map<String, OAuth20AuthorizationResponseBuilder> builders =
-                this.applicationContext.getBeansOfType(OAuth20AuthorizationResponseBuilder.class, false, true);
+            this.applicationContext.getBeansOfType(OAuth20AuthorizationResponseBuilder.class, false, true);
         return new HashSet<>(builders.values());
     }
 
@@ -373,67 +448,76 @@ public class CasOAuthConfiguration extends WebMvcConfigurerAdapter {
     @RefreshScope
     public Set<OAuth20RequestValidator> oauthRequestValidators() {
         final Map<String, OAuth20RequestValidator> builders =
-                this.applicationContext.getBeansOfType(OAuth20RequestValidator.class, false, true);
+            this.applicationContext.getBeansOfType(OAuth20RequestValidator.class, false, true);
         return new HashSet<>(builders.values());
     }
 
+    @ConditionalOnMissingBean(name = "oauthClientCredentialsGrantTypeRequestValidator")
     @Bean
     @RefreshScope
     public OAuth20RequestValidator oauthClientCredentialsGrantTypeRequestValidator() {
         return new OAuth20ClientCredentialsGrantTypeRequestValidator(servicesManager, oAuthValidator());
     }
 
+    @ConditionalOnMissingBean(name = "oauthAuthorizationCodeResponseTypeRequestValidator")
     @Bean
     @RefreshScope
     public OAuth20RequestValidator oauthAuthorizationCodeResponseTypeRequestValidator() {
         return new OAuth20AuthorizationCodeResponseTypeRequestValidator(servicesManager, oAuthValidator());
     }
 
+    @ConditionalOnMissingBean(name = "oauthTokenResponseTypeRequestValidator")
     @Bean
     @RefreshScope
     public OAuth20RequestValidator oauthTokenResponseTypeRequestValidator() {
         return new OAuth20TokenResponseTypeRequestValidator(servicesManager, oAuthValidator());
     }
 
+    @ConditionalOnMissingBean(name = "oauthIdTokenResponseTypeRequestValidator")
     @Bean
     @RefreshScope
     public OAuth20RequestValidator oauthIdTokenResponseTypeRequestValidator() {
         return new OAuth20IdTokenResponseTypeRequestValidator(servicesManager, oAuthValidator());
     }
 
+    @ConditionalOnMissingBean(name = "oauthPasswordGrantTypeRequestValidator")
     @Bean
     @RefreshScope
     public OAuth20RequestValidator oauthPasswordGrantTypeRequestValidator() {
         return new OAuth20PasswordGrantTypeRequestValidator(servicesManager, oAuthValidator());
     }
 
-
+    @ConditionalOnMissingBean(name = "oauthRefreshTokenGrantTypeRequestValidator")
     @Bean
     @RefreshScope
     public OAuth20RequestValidator oauthRefreshTokenGrantTypeRequestValidator() {
         return new OAuth20RefreshTokenGrantTypeRequestValidator(servicesManager, oAuthValidator());
     }
 
+    @ConditionalOnMissingBean(name = "oauthResourceOwnerCredentialsResponseBuilder")
     @Bean
     @RefreshScope
     public OAuth20AuthorizationResponseBuilder oauthResourceOwnerCredentialsResponseBuilder() {
         return new OAuth20ResourceOwnerCredentialsResponseBuilder(accessTokenResponseGenerator(), oauthTokenGenerator(),
-                accessTokenExpirationPolicy());
+            accessTokenExpirationPolicy());
     }
-    
+
+    @ConditionalOnMissingBean(name = "oauthClientCredentialsResponseBuilder")
     @Bean
     @RefreshScope
     public OAuth20AuthorizationResponseBuilder oauthClientCredentialsResponseBuilder() {
         return new OAuth20ClientCredentialsResponseBuilder(accessTokenResponseGenerator(),
-                oauthTokenGenerator(), accessTokenExpirationPolicy());
+            oauthTokenGenerator(), accessTokenExpirationPolicy());
     }
 
+    @ConditionalOnMissingBean(name = "oauthTokenResponseBuilder")
     @Bean
     @RefreshScope
     public OAuth20AuthorizationResponseBuilder oauthTokenResponseBuilder() {
         return new OAuth20TokenAuthorizationResponseBuilder(oauthTokenGenerator(), accessTokenExpirationPolicy());
     }
 
+    @ConditionalOnMissingBean(name = "oauthAuthorizationCodeResponseBuilder")
     @Bean
     @RefreshScope
     public OAuth20AuthorizationResponseBuilder oauthAuthorizationCodeResponseBuilder() {
@@ -445,11 +529,11 @@ public class CasOAuthConfiguration extends WebMvcConfigurerAdapter {
     @RefreshScope
     public OAuth20AuthorizeEndpointController authorizeController() {
         return new OAuth20AuthorizeEndpointController(
-                servicesManager, ticketRegistry, oAuthValidator(), defaultAccessTokenFactory(),
-                oauthPrincipalFactory(), webApplicationServiceFactory, defaultOAuthCodeFactory(),
-                consentApprovalViewResolver(), profileScopeToAttributesFilter(), casProperties,
-                ticketGrantingTicketCookieGenerator, oauthCasAuthenticationBuilder(),
-                oauthAuthorizationResponseBuilders(), oauthRequestValidators()
+            servicesManager, ticketRegistry, oAuthValidator(), defaultAccessTokenFactory(),
+            oauthPrincipalFactory(), webApplicationServiceFactory, defaultOAuthCodeFactory(),
+            consentApprovalViewResolver(), profileScopeToAttributesFilter(), casProperties,
+            ticketGrantingTicketCookieGenerator, oauthCasAuthenticationBuilder(),
+            oauthAuthorizationResponseBuilders(), oauthRequestValidators()
         );
     }
 
@@ -476,15 +560,7 @@ public class CasOAuthConfiguration extends WebMvcConfigurerAdapter {
     @RefreshScope
     public OAuth20CasAuthenticationBuilder oauthCasAuthenticationBuilder() {
         return new OAuth20CasAuthenticationBuilder(oauthPrincipalFactory(), webApplicationServiceFactory,
-                profileScopeToAttributesFilter(), casProperties);
-    }
-
-    @Bean
-    @RefreshScope
-    public CallbackController callbackController() {
-        final CallbackController c = new CallbackController();
-        c.setConfig(oauthSecConfig());
-        return c;
+            profileScopeToAttributesFilter(), casProperties);
     }
 
     @ConditionalOnMissingBean(name = "accessTokenIdGenerator")
@@ -503,7 +579,7 @@ public class CasOAuthConfiguration extends WebMvcConfigurerAdapter {
 
         if (svc == null || !svc.getServiceId().equals(oAuthCallbackUrl)) {
             final RegexRegisteredService service = new RegexRegisteredService();
-            service.setId(Math.abs(new SecureRandom().nextLong()));
+            service.setId(Math.abs(RandomUtils.getInstanceNative().nextLong()));
             service.setEvaluationOrder(0);
             service.setName(service.getClass().getSimpleName());
             service.setDescription("OAuth Authentication Callback Request URL");

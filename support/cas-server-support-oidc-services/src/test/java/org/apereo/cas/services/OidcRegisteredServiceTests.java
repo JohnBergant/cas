@@ -2,6 +2,7 @@ package org.apereo.cas.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.io.FileUtils;
+import org.apereo.cas.services.replication.NoOpRegisteredServiceReplicationStrategy;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.springframework.context.ApplicationEventPublisher;
@@ -27,7 +28,8 @@ public class OidcRegisteredServiceTests {
     private final ServiceRegistryDao dao;
 
     public OidcRegisteredServiceTests() throws Exception {
-        this.dao = new JsonServiceRegistryDao(RESOURCE, false, mock(ApplicationEventPublisher.class));
+        this.dao = new JsonServiceRegistryDao(RESOURCE, false, 
+                mock(ApplicationEventPublisher.class), new NoOpRegisteredServiceReplicationStrategy());
     }
 
     @BeforeClass
@@ -55,16 +57,14 @@ public class OidcRegisteredServiceTests {
     @Test
     public void verifySerializeAOidcRegisteredServiceToJson() throws IOException {
         final OidcRegisteredService serviceWritten = new OidcRegisteredService();
-        serviceWritten.setName("checkSaveMethod");
+        serviceWritten.setName("verifySerializeAOidcRegisteredServiceToJson");
         serviceWritten.setServiceId("testId");
         serviceWritten.setJwks("file:/etc/cas/thekeystorehere.jwks");
         serviceWritten.setSignIdToken(true);
         serviceWritten.setBypassApprovalPrompt(true);
-
+        serviceWritten.setUsernameAttributeProvider(new PairwiseOidcRegisteredServiceUsernameAttributeProvider());
         MAPPER.writeValue(JSON_FILE, serviceWritten);
-
         final RegisteredService serviceRead = MAPPER.readValue(JSON_FILE, OidcRegisteredService.class);
-
         assertEquals(serviceWritten, serviceRead);
     }
 }

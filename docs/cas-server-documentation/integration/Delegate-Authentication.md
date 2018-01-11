@@ -7,11 +7,11 @@ title: CAS - Delegate Authentication
 
 CAS can act as a client using the [pac4j security engine](https://github.com/pac4j/pac4j) and delegate the authentication to:
 
-* A CAS server
-* A SAML identity provider
-* An OAuth2 provider: Facebook, Twitter, Google, LinkedIn, Yahoo and several other providers.
-* An OpenID provider
-* An OpenID Connect identity provider
+* CAS servers
+* SAML2 identity providers
+* OAuth2 providers such as Facebook, Twitter, Google, LinkedIn, Yahoo, etc
+* OpenID providers
+* OpenID Connect identity providers
 
 Support is enabled by including the following dependency in the WAR overlay:
 
@@ -24,7 +24,7 @@ Support is enabled by including the following dependency in the WAR overlay:
 ```
 
 <div class="alert alert-info"><strong>Remember</strong><p>Delegated authentication always assumes the originator of the authentication request is a CAS client; an
-application that understands CAS protocol and can validate a service ticket. Clients that use other protocols (SAML2, OAuth, etc) with CAS cannot today take advantage of delegated authentication scenarios though support for this behavior may be worked out in future releases.</p></div>
+application that understands CAS protocol and can validate a service ticket. Clients that use other protocols (SAML2, OAuth, etc) with CAS cannot today take advantage of delegated authentication scenarios. Support for this behavior may be worked out in future releases.</p></div>
 
 ## Register Providers
 
@@ -94,6 +94,43 @@ On CAS server side, to push attributes to the CAS client, it should be configure
   }
 }
 ```
+
+## Access Strategy
+
+Service definitions may be conditionally authorized to use an external identity provider by defining their own access strategy and policy:
+
+```json
+{
+  "@class" : "org.apereo.cas.services.RegexRegisteredService",
+  "serviceId" : "sample",
+  "name" : "sample",
+  "id" : 100,
+  "accessStrategy" : {
+    "@class" : "org.apereo.cas.services.DefaultRegisteredServiceAccessStrategy",
+    "delegatedAuthenticationPolicy" : {
+      "@class" : "org.apereo.cas.services.DefaultRegisteredServiceDelegatedAuthenticationPolicy",
+      "allowedProviders" : [ "java.util.ArrayList", [ "Facebook", "Twitter" ] ]
+    }
+  }
+}
+```
+
+The list of allowed providers should contain the exteral identity provider names (i.e. client names).
+
+## Configuration
+
+### SAML2 Identity Providers
+
+In the event that CAS is configured to delegate authentication to an external identity provider, the service provider (CAS) metadata as well as the identity provider metadata automatically become available at the following endpoints. Note that you can use more than one external identity provider with CAS, where each integration may be done with a different set of metadata and keys for CAS acting as the service provider. Each integration (referred to as a client, since CAS itself becomes a client of the identity provider) may be given a name optionally.
+
+| Endpoint                   | Description
+|---------------------------|--------------------------------------------------------------------------------------------------------------------
+| `/sp/metadata`         | Displays the service provider (CAS) metadata. Works well if there is only one SAML2 IdP is defined.
+| `/sp/idp/metadata`         | Displays the identity provider metadata. Works well if there is only one SAML2 IdP is defined.
+| `/sp/{clientName}/metadata`         | Displays the service provider metadata for the requested client name.
+| `/sp/{clientName}/idp/metadata`         | Displays the identity provider metadata for the requested client name.
+
+Remember that the service provider (CAS) metadata is automatically generated once you access the above endpoints or view the CAS login screen. This is required because today, generating the metadata requires access to the HTTP request/response. In the event that metadata canot be resolved, a status code of `406 - Not Acceptable` is returned.
 
 ## Troubleshooting
 

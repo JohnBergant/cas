@@ -1,6 +1,6 @@
 package org.apereo.cas.oidc.jwks;
 
-import com.google.common.cache.CacheLoader;
+import com.github.benmanes.caffeine.cache.CacheLoader;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apereo.cas.services.OidcRegisteredService;
@@ -21,7 +21,7 @@ import java.util.Optional;
  * @author Misagh Moayyed
  * @since 5.1.0
  */
-public class OidcServiceJsonWebKeystoreCacheLoader extends CacheLoader<OidcRegisteredService, Optional<RsaJsonWebKey>> {
+public class OidcServiceJsonWebKeystoreCacheLoader implements CacheLoader<OidcRegisteredService, Optional<RsaJsonWebKey>> {
     private static final Logger LOGGER = LoggerFactory.getLogger(OidcServiceJsonWebKeystoreCacheLoader.class);
 
     @Autowired
@@ -61,7 +61,7 @@ public class OidcServiceJsonWebKeystoreCacheLoader extends CacheLoader<OidcRegis
         return key;
     }
 
-    private Optional<JsonWebKeySet> buildJsonWebKeySet(final OidcRegisteredService service) throws Exception {
+    private Optional<JsonWebKeySet> buildJsonWebKeySet(final OidcRegisteredService service) {
         try {
             LOGGER.debug("Loading JSON web key from [{}]", service.getJwks());
             final Resource resource = this.resourceLoader.getResource(service.getJwks());
